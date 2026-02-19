@@ -8,11 +8,11 @@ class BaseDatabase(ABC):
         self.connection = None
 
     @abstractmethod
-    def close(self):
+    def connect(self):
         pass
 
     @abstractmethod
-    def connect(self):
+    def close(self):
         pass
 
     @abstractmethod
