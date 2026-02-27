@@ -66,30 +66,36 @@ class PgSQLDatabase(BaseDatabase):
             if cursor:
                 cursor.close()
 
-    def bulk_insert(self, csv_file: str, table_name: str) -> int:
-        """
-        Загружает все строки в память и вставляет одним запросом через execute_values.
-        Быстрее default_insert за счёт одного round-trip к БД.
-        """
+    def bulk_insert(
+        self, csv_file: str, table_name: str, batch_size: int = 1000
+    ) -> int:
         cursor = None
         try:
             cursor = self.connection.cursor()
+            insert_count = 0
 
             with open(csv_file, "r", newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 columns = reader.fieldnames
-                rows = [list(row.values()) for row in reader]
 
-            if not rows:
-                return 0
+                col_names = ", ".join(self._quote(col) for col in columns)
+                sql = f"INSERT INTO {self._quote(table_name)} ({col_names}) VALUES %s"
 
-            col_names = ", ".join(self._quote(col) for col in columns)
-            sql = f"INSERT INTO {self._quote(table_name)} ({col_names}) VALUES %s"
+                batch = []
+                for row in reader:
+                    batch.append(list(row.values()))
 
-            execute_values(cursor, sql, rows, page_size=1000)
+                    if len(batch) >= batch_size:
+                        execute_values(cursor, sql, batch, page_size=batch_size)
+                        insert_count += len(batch)
+                        batch.clear()
+
+                if batch:
+                    execute_values(cursor, sql, batch, page_size=batch_size)
+                    insert_count += len(batch)
 
             self.connection.commit()
-            return len(rows)
+            return insert_count
 
         except Exception as e:
             self.connection.rollback()

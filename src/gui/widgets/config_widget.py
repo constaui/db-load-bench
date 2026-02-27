@@ -42,4 +42,5 @@ class ConfigWidget(QGroupBox):
             "conn_params": self.db_params_form.get_params(),
             "csv_file": self.file_input.get_path(),
             "method": self.method_selector.get_method(),
+            "batch_size": self.method_selector.get_batch_size(),
         }

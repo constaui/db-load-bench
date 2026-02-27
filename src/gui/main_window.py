@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QMainWindow, QPushButton
+from PyQt6.QtWidgets import QMainWindow, QPushButton, QSplitter, QWidget, QVBoxLayout
+from PyQt6.QtCore import Qt
 from .widgets import LogWidget, ConfigWidget, ResultsWidget
 from .workers import InsertWorker
 
@@ -16,20 +17,27 @@ class MainWindow(QMainWindow):
         self.run_btn.clicked.connect(self._on_run_clicked)
         self.config_widget.log_message.connect(self.log_widget.log)
 
-        container = QWidget()
-        container.setMinimumSize(1000, 400)
+        # Правая колонка: results сверху, log снизу — вертикальный сплиттер
+        right_splitter = QSplitter(Qt.Orientation.Vertical)
+        right_splitter.addWidget(self.results_widget)
+        right_splitter.addWidget(self.log_widget)
+        right_splitter.setSizes([600, 200])  # начальное соотношение высот
 
-        main_layout = QHBoxLayout(container)
-        main_layout.addWidget(self.config_widget)
+        # Левая колонка: config + кнопка в одном виджете
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addWidget(self.config_widget)
+        left_layout.addWidget(self.run_btn)
 
-        right_layout = QVBoxLayout()
-        right_layout.addWidget(self.results_widget)
-        right_layout.addWidget(self.log_widget)
-        right_layout.addWidget(self.run_btn)
+        # Главный сплиттер: config слева, results+log справа — горизонтальный
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_splitter.addWidget(left_widget)
+        main_splitter.addWidget(right_splitter)
+        main_splitter.setSizes([300, 900])  # начальное соотношение ширин
+        main_splitter.setMinimumSize(1000, 600)
 
-        main_layout.addLayout(right_layout)
-
-        self.setCentralWidget(container)
+        self.setCentralWidget(main_splitter)
 
     def _on_run_clicked(self):
         config = self.config_widget.get_config()
@@ -43,7 +51,7 @@ class MainWindow(QMainWindow):
 
         self.worker = InsertWorker(config)
         self.worker.log_message.connect(self.log_widget.log)
-        # self.worker.finished.connect(self.results_widget.update_results)
+        self.worker.finished.connect(self.results_widget.update_results)
         self.worker.finished.connect(lambda: self.run_btn.setEnabled(True))
         self.worker.error.connect(lambda: self.run_btn.setEnabled(True))
 

@@ -45,7 +45,12 @@ class InsertWorker(QThread):
 
             self.log_message.emit(f"Запуск {method}...", "INFO")
             start = time.perf_counter()
-            rows = insert_fn(csv_file, table)
+
+            if method == "bulk_insert":
+                rows = insert_fn(csv_file, table, self.config["batch_size"])
+            else:
+                rows = insert_fn(csv_file, table)
+
             elapsed = time.perf_counter() - start
 
             self.log_message.emit(
@@ -53,10 +58,16 @@ class InsertWorker(QThread):
             )
             self.finished.emit(
                 {
+                    "db_type": self.config["db_type"],
                     "method": method,
                     "rows": rows,
                     "elapsed": elapsed,
                     "rps": round(rows / elapsed, 1) if elapsed > 0 else 0,
+                    "batch_size": (
+                        self.config.get("batch_size")
+                        if method == "bulk_insert"
+                        else None
+                    ),
                 }
             )
 

@@ -84,31 +84,38 @@ class MySQLDatabase(BaseDatabase):
             if cursor:
                 cursor.close()
 
-    def bulk_insert(self, csv_file: str, table_name: str) -> int:
-        """
-        Загружает все строки в память и вставляет одним executemany.
-        Быстрее default_insert за счёт батчевой передачи данных.
-        """
+    def bulk_insert(
+        self, csv_file: str, table_name: str, batch_size: int = 1000
+    ) -> int:
         cursor = None
         try:
             cursor = self.connection.cursor()
+            insert_count = 0
 
             with open(csv_file, "r", newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 columns = reader.fieldnames
-                rows = [list(row.values()) for row in reader]
 
-            if not rows:
-                return 0
+                col_names = ", ".join(self._quote(col) for col in columns)
+                placeholders = ", ".join(["%s"] * len(columns))
+                sql = f"INSERT INTO {self._quote(table_name)} ({col_names}) VALUES ({placeholders})"
 
-            col_names = ", ".join(self._quote(col) for col in columns)
-            placeholders = ", ".join(["%s"] * len(columns))
-            sql = f"INSERT INTO {self._quote(table_name)} ({col_names}) VALUES ({placeholders})"
+                batch = []
+                for row in reader:
+                    batch.append(list(row.values()))
 
-            cursor.executemany(sql, rows)
+                    if len(batch) >= batch_size:
+                        cursor.executemany(sql, batch)
+                        insert_count += len(batch)
+                        batch.clear()
+
+                # Остаток последнего батча
+                if batch:
+                    cursor.executemany(sql, batch)
+                    insert_count += len(batch)
 
             self.connection.commit()
-            return len(rows)
+            return insert_count
 
         except Exception as e:
             self.connection.rollback()
