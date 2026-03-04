@@ -1,3 +1,4 @@
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
@@ -10,6 +11,8 @@ from PyQt6.QtCore import pyqtSignal
 
 
 class FileInput(QWidget):
+    """Окно с выбором файла"""
+
     file_selected = pyqtSignal(str)
     log_message = pyqtSignal(str, str)
 
@@ -33,8 +36,12 @@ class FileInput(QWidget):
         self.setLayout(layout)
 
     def _open_dialog(self):
+        downloads = str(Path.home() / "Downloads")
         path, _ = QFileDialog.getOpenFileName(
-            self, "Выберите файл", "", "CSV Files (*.csv);;All Files (*)"
+            self,
+            "Выберите файл",
+            downloads,
+            "CSV Files (*.csv);;All Files (*)",
         )
         if path:
             self.input.setText(path)

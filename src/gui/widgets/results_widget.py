@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import pyqtSlot
 
-from ..utils.chart_data import ChartStore, add_run
+from ..utils.chart_data import ChartStore, MethodRun, add_run
 from ..utils.results_storage import save_results, load_results, clear_results_file
 from ..components.bar_chart import BarChartWidget
 from ..components.line_chart import LineChartWidget
@@ -21,10 +21,11 @@ VIEWS = ["Bar Chart", "Line Chart", "Таблица"]
 
 
 class ResultsWidget(QGroupBox):
-    def __init__(self, parent=None):
-        super().__init__("Результаты", parent)
+    """Блок с графиками и таблицей"""
 
-        # Загружаем сохранённые данные при старте
+    def __init__(self):
+        super().__init__("Результаты")
+
         self._store: ChartStore = load_results()
 
         self._bar = BarChartWidget()
@@ -32,16 +33,14 @@ class ResultsWidget(QGroupBox):
         self._table = ResultsTableWidget()
 
         self._stack = QStackedWidget()
-        self._stack.addWidget(self._bar)  # 0
-        self._stack.addWidget(self._line)  # 1
-        self._stack.addWidget(self._table)  # 2
+        self._stack.addWidget(self._bar)
+        self._stack.addWidget(self._line)
+        self._stack.addWidget(self._table)
 
-        # Селектор СУБД
         self._db_selector = QComboBox()
         self._db_selector.addItem("Все СУБД")
         self._db_selector.currentTextChanged.connect(self._refresh)
 
-        # Переключатели вида
         self._view_group = QButtonGroup()
         view_btn_layout = QHBoxLayout()
         for i, label in enumerate(VIEWS):
@@ -52,7 +51,7 @@ class ResultsWidget(QGroupBox):
             self._view_group.addButton(btn, i)
             view_btn_layout.addWidget(btn)
 
-        clear_view_btn = QPushButton("Очистить график")
+        clear_view_btn = QPushButton("Скрыть результаты")
         clear_file_btn = QPushButton("Очистить файл результатов")
         clear_view_btn.clicked.connect(self._clear_view)
         clear_file_btn.clicked.connect(self._clear_file)
@@ -70,28 +69,28 @@ class ResultsWidget(QGroupBox):
         layout.addWidget(self._stack)
         self.setLayout(layout)
 
-        # Заполняем селектор и рисуем графики из загруженных данных
         self._restore_selector()
         self._refresh()
 
     @pyqtSlot(dict)
     def update_results(self, result: dict):
-        add_run(
-            self._store,
-            result["db_type"],
-            result["method"],
-            result["rows"],
-            result["elapsed"],
-            result.get("batch_size"),
+        run = MethodRun(
+            engine=result["engine"],
+            db_type=result["db_type"],
+            method=result["method"],
+            experiment_config=result["experiment_config"],
+            method_config=result["method_config"],
+            metrics=result["metrics"],
         )
-        save_results(self._store)  # сохраняем после каждого теста
-        self._sync_selector(result["db_type"])
+        add_run(self._store, run)
+        save_results(self._store)
+        self._sync_selector(run.db_type)
         self._refresh()
 
     def _restore_selector(self):
         """Восстанавливает список СУБД из загруженных данных."""
-        for db_type in self._store:
-            self._sync_selector(db_type)
+        for run in self._store:
+            self._sync_selector(run.db_type)
 
     def _sync_selector(self, db_type: str):
         items = [
@@ -104,7 +103,7 @@ class ResultsWidget(QGroupBox):
         selected = self._db_selector.currentText()
         if selected == "Все СУБД":
             return self._store
-        return {selected: self._store[selected]} if selected in self._store else {}
+        return [r for r in self._store if r.db_type == selected]
 
     def _switch_view(self, index: int):
         self._stack.setCurrentIndex(index)

@@ -9,6 +9,8 @@ DB_CONFIGS = {
 
 
 class DatabaseTypeSelector(QWidget):
+    """Окно с выбором СУБД"""
+
     db_changed = pyqtSignal(str)
     log_message = pyqtSignal(str, str)
 

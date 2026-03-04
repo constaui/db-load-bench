@@ -20,8 +20,10 @@ LOG_TYPE = {
 
 
 class LogWidget(QGroupBox):
-    def __init__(self, parent=None):
-        super().__init__("Лог", parent)
+    """Блок с логами"""
+
+    def __init__(self) -> None:
+        super().__init__("Лог")
 
         self.text_area = QPlainTextEdit()
         self.text_area.setReadOnly(True)

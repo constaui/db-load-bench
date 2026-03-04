@@ -12,6 +12,8 @@ DEFAULT_PORTS = {
 
 
 class DatabaseParametersForm(QWidget):
+    """Форма для ввода параметров БД"""
+
     log_message = pyqtSignal(str, str)
 
     def __init__(self, parent=None):

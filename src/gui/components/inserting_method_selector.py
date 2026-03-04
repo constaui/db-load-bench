@@ -10,6 +10,8 @@ INSERT_METHODS = {
 
 
 class InsertingMethodSelector(QWidget):
+    """Окно с выбором метода вставки"""
+
     method_changed = pyqtSignal(str)
     log_message = pyqtSignal(str, str)
 
@@ -41,6 +43,7 @@ class InsertingMethodSelector(QWidget):
         self.batch_size_label.setVisible(visible)
 
     def get_batch_size(self) -> int:
+        """Возвращает размер batch size для bulk insert"""
         return self.batch_size_input.value()
 
     def _on_changed(self, label: str):
@@ -50,8 +53,3 @@ class InsertingMethodSelector(QWidget):
     def get_method(self) -> str:
         """Возвращает имя метода для вызова через getattr(db, method)."""
         return INSERT_METHODS[self.combo.currentText()]
-
-    @staticmethod
-    def register(label: str, method: str):
-        """Регистрирует новый метод без изменения класса."""
-        INSERT_METHODS[label] = method

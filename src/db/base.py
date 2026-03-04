@@ -24,5 +24,9 @@ class BaseDatabase(ABC):
         pass
 
     @abstractmethod
-    def bulk_insert(self):
+    def bulk_insert(self, csv_file: str, table_name: str, batch_size: int) -> int:
+        pass
+
+    @abstractmethod
+    def file_insert(self, csv_file: str, table_name: str) -> int:
         pass

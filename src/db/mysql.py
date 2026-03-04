@@ -1,8 +1,9 @@
+import csv
 import mysql.connector
 from mysql.connector import Error
+
 from .base import BaseDatabase
 from .exceptions import DatabaseConnectionError
-import csv
 
 
 class MySQLDatabase(BaseDatabase):
@@ -42,7 +43,7 @@ class MySQLDatabase(BaseDatabase):
     def _quote(self, name: str) -> str:
         """Экранирует идентификатор для MySQL бэктиками."""
         clean = name.strip().strip("`")
-        clean = clean.replace("`", "``")  # внутренние бэктики удваиваем
+        clean = clean.replace("`", "``")
         return f"`{clean}`"
 
     def prepare(self, cursor, csv_file: str, table_name: str):
@@ -109,7 +110,6 @@ class MySQLDatabase(BaseDatabase):
                         insert_count += len(batch)
                         batch.clear()
 
-                # Остаток последнего батча
                 if batch:
                     cursor.executemany(sql, batch)
                     insert_count += len(batch)
@@ -134,13 +134,11 @@ class MySQLDatabase(BaseDatabase):
         try:
             cursor = self.connection.cursor()
 
-            # Считаем строки заранее — LOAD DATA не возвращает точный rowcount
             with open(csv_file, "r", newline="", encoding="utf-8") as f:
                 row_count = sum(1 for _ in csv.DictReader(f))
 
             table = self._quote(table_name)
 
-            # Абсолютный путь обязателен для LOCAL INFILE
             abs_path = csv_file.replace("\\", "/")
 
             cursor.execute(

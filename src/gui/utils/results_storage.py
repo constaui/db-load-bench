@@ -1,54 +1,48 @@
 import json
 from pathlib import Path
+
 from .chart_data import ChartStore, MethodRun
 
 RESULTS_FILE = Path("results.json")
 
 
 def save_results(store: ChartStore) -> None:
-    data = {
-        db_type: {
-            method: [
-                {
-                    "rows": run.rows,
-                    "elapsed": run.elapsed,
-                    "rps": run.rps,
-                    "batch_size": run.batch_size,
-                }
-                for run in runs
-            ]
-            for method, runs in methods.items()
+    """Сохранение результатов в файл"""
+    data = [
+        {
+            "engine": r.engine,
+            "db_type": r.db_type,
+            "method": r.method,
+            "experiment_config": r.experiment_config,
+            "method_config": r.method_config,
+            "metrics": r.metrics,
         }
-        for db_type, methods in store.items()
-    }
+        for r in store
+    ]
     RESULTS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def load_results() -> ChartStore:
+    """Загрузка результатов из файла"""
     if not RESULTS_FILE.exists():
-        return {}
+        return []
 
-    try:
-        data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
-        return {
-            db_type: {
-                method: [
-                    MethodRun(
-                        rows=r["rows"],
-                        elapsed=r["elapsed"],
-                        rps=r["rps"],
-                        batch_size=r.get("batch_size"),
-                    )
-                    for r in runs
-                ]
-                for method, runs in methods.items()
-            }
-            for db_type, methods in data.items()
-        }
-    except (json.JSONDecodeError, KeyError):
-        return {}
+    data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
+
+    return [
+        MethodRun(
+            engine=r["engine"],
+            db_type=r["db_type"],
+            method=r["method"],
+            experiment_config=r["experiment_config"],
+            method_config=r["method_config"],
+            metrics=r["metrics"],
+        )
+        for r in data
+    ]
 
 
 def clear_results_file() -> None:
+    """Удаление выполненных тестов из файла"""
     if RESULTS_FILE.exists():
         RESULTS_FILE.unlink()

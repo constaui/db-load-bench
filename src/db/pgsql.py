@@ -1,9 +1,10 @@
 import psycopg2
 import csv
 from psycopg2 import Error
+from psycopg2.extras import execute_values
+
 from .base import BaseDatabase
 from .exceptions import DatabaseConnectionError
-from psycopg2.extras import execute_values
 
 
 class PgSQLDatabase(BaseDatabase):
@@ -22,9 +23,8 @@ class PgSQLDatabase(BaseDatabase):
                 self.connection = None
 
     def _quote(self, name: str) -> str:
-        """Экранирует идентификатор для PostgreSQL двойными кавычками."""
         clean = name.strip().strip('"')
-        clean = clean.replace('"', '""')  # внутренние кавычки удваиваем
+        clean = clean.replace('"', '""')
         return f'"{clean}"'
 
     def prepare(self, cursor, csv_file: str, table_name: str):
@@ -113,7 +113,6 @@ class PgSQLDatabase(BaseDatabase):
         try:
             cursor = self.connection.cursor()
 
-            # Считаем строки заранее — COPY не возвращает rowcount надёжно
             with open(csv_file, "r", newline="", encoding="utf-8") as f:
                 row_count = sum(1 for _ in csv.DictReader(f))
 

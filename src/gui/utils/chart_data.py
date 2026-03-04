@@ -1,59 +1,103 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
 class MethodRun:
-    rows: int
-    elapsed: float
-    rps: float
-    batch_size: int | None = None  # None для default_insert и file_insert
+    """Класс для сохраненного результата теста"""
+
+    engine: str
+    db_type: str
+    method: str
+
+    experiment_config: dict[str, int] = field(default_factory=dict)
+
+    method_config: dict[str, Optional[int]] = field(default_factory=dict)
+
+    metrics: dict[str, float] = field(default_factory=dict)
+
+    @property
+    def rows(self) -> int:
+        return self.experiment_config.get("rows", 0)
+
+    @property
+    def elapsed(self) -> float:
+        return self.metrics.get("elapsed", 0.0)
+
+    @property
+    def rps(self) -> float:
+        return self.metrics.get("rps", 0.0)
+
+    @property
+    def batch_size(self) -> Optional[int]:
+        return self.method_config.get("batch_size")
 
 
-ChartStore = dict[str, dict[str, list[MethodRun]]]
+ChartStore = list[MethodRun]
+
+GroupKey = tuple[str, str, str, Optional[int]]
 
 
-def add_run(
+def _group_key(run: MethodRun) -> GroupKey:
+    return (run.engine, run.db_type, run.method, run.batch_size)
+
+
+def _average_run(runs: list[MethodRun]) -> MethodRun:
+    """Усредняет метрики результатов с одинаковым GroupKey"""
+    base = runs[0]
+    n = len(runs)
+    return MethodRun(
+        engine=base.engine,
+        db_type=base.db_type,
+        method=base.method,
+        experiment_config=base.experiment_config,
+        method_config=base.method_config,
+        metrics={
+            "elapsed": round(sum(r.elapsed for r in runs) / n, 6),
+            "rps": round(sum(r.rps for r in runs) / n, 1),
+        },
+    )
+
+
+def get_aggregated(store: ChartStore) -> dict[GroupKey, MethodRun]:
+    """
+    Группирует результаты по (engine, db_type, method, batch_size)
+    и возвращает усреднённый MethodRun для каждой группы
+    """
+    groups: dict[GroupKey, list[MethodRun]] = {}
+    for run in store:
+        groups.setdefault(_group_key(run), []).append(run)
+
+    return {key: _average_run(runs) for key, runs in groups.items()}
+
+
+def filter_runs(
     store: ChartStore,
-    db_type: str,
-    method: str,
-    rows: int,
-    elapsed: float,
-    batch_size: int | None = None,
-) -> None:
-    rps = round(rows / elapsed, 1) if elapsed > 0 else 0
-    run = MethodRun(rows=rows, elapsed=elapsed, rps=rps, batch_size=batch_size)
-    store.setdefault(db_type, {}).setdefault(method, []).append(run)
-
-
-def get_latest(store: ChartStore) -> dict[str, dict[str, MethodRun]]:
+    engine: str | None = None,
+    db_type: str | None = None,
+    method: str | None = None,
+) -> ChartStore:
     """
-    Для bulk_insert каждый batch_size — отдельная запись.
-    Ключ: "bulk_insert:1000", "bulk_insert:5000" и т.д.
+    Фильтрация результатов
     """
-    result = {}
-    for db_type, methods in store.items():
-        result[db_type] = {}
-        for method, runs in methods.items():
-            if not runs:
-                continue
-
-            if method == "bulk_insert":
-                # Группируем по batch_size, берём последний прогон каждой группы
-                by_batch: dict = {}
-                for run in runs:
-                    by_batch[run.batch_size] = run  # перезапись = последний прогон
-
-                for batch_size, run in by_batch.items():
-                    key = f"bulk_insert:{batch_size}"
-                    result[db_type][key] = run
-            else:
-                result[db_type][method] = runs[-1]
-
-    return result
+    return [
+        r
+        for r in store
+        if (engine is None or r.engine == engine)
+        and (db_type is None or r.db_type == db_type)
+        and (method is None or r.method == method)
+    ]
 
 
-def series_label(db_type: str, method: str, run: MethodRun) -> str:
-    """Формирует подпись линии/бара с учётом batch_size."""
-    if method == "bulk_insert" and run.batch_size is not None:
-        return f"{db_type} / {method} (batch={run.batch_size})"
-    return f"{db_type} / {method}"
+def add_run(store: ChartStore, run: MethodRun) -> None:
+    store.append(run)
+
+
+def series_label(run: MethodRun) -> str:
+    """
+    Формирование подписи для диаграмм
+    """
+    base = f"{run.engine} / {run.db_type} / {run.method}"
+    if run.method == "bulk_insert" and run.batch_size is not None:
+        return f"{base} (batch={run.batch_size})"
+    return base

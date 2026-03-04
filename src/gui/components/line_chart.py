@@ -1,13 +1,14 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QToolTip
 from PyQt6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis
-from PyQt6.QtGui import QPainter
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPainter, QCursor
+from PyQt6.QtCore import Qt, QPointF
 
-from ..utils.chart_data import ChartStore, series_label
+from ..utils.chart_data import ChartStore, series_label, _group_key, GroupKey
 from .chart_legend import ChartLegend
 
 
 class LineChartWidget(QWidget):
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -16,14 +17,14 @@ class LineChartWidget(QWidget):
         self._chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self._chart.legend().setVisible(False)
 
-        view = QChartView(self._chart)
-        view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._view = QChartView(self._chart)  # ← сохраняем в self для тултипа
+        self._view.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         self._legend = ChartLegend()
 
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(view)
+        layout.addWidget(self._view)
         layout.addWidget(self._legend)
         self.setLayout(layout)
 
@@ -33,6 +34,13 @@ class LineChartWidget(QWidget):
             self._chart.removeAxis(ax)
 
         if not store:
+            return
+
+        groups: dict[GroupKey, list] = {}
+        for run in store:
+            groups.setdefault(_group_key(run), []).append(run)
+
+        if not groups:
             return
 
         axis_x = QValueAxis()
@@ -47,36 +55,51 @@ class LineChartWidget(QWidget):
         self._chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         self._chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
 
-        for db_type, methods in store.items():
-            for method, runs in methods.items():
-                if not runs:
-                    continue
+        all_series = []
 
-                if method == "bulk_insert":
-                    by_batch: dict = {}
-                    for run in runs:
-                        by_batch.setdefault(run.batch_size, []).append(run)
+        for key, runs in groups.items():
+            representative = runs[0]
 
-                    for _, batch_runs in by_batch.items():
-                        series = QLineSeries()
-                        series.setName(series_label(db_type, method, batch_runs[0]))
-                        series.append(0, 0)
-                        for run in sorted(batch_runs, key=lambda r: r.rows):
-                            series.append(run.rows, run.elapsed)
-                        self._chart.addSeries(series)
-                        series.attachAxis(axis_x)
-                        series.attachAxis(axis_y)
-                else:
-                    series = QLineSeries()
-                    series.setName(f"{db_type} / {method}")
-                    series.append(0, 0)
-                    for run in sorted(runs, key=lambda r: r.rows):
-                        series.append(run.rows, run.elapsed)
-                    self._chart.addSeries(series)
-                    series.attachAxis(axis_x)
-                    series.attachAxis(axis_y)
+            qt_series = QLineSeries()
+            qt_series.setName(series_label(representative))
+            qt_series.append(0, 0)
+
+            for run in sorted(runs, key=lambda r: r.rows):
+                qt_series.append(run.rows, run.elapsed)
+
+            # Передаём имя серии через lambda чтобы тултип знал название метода
+            qt_series.hovered.connect(
+                lambda point, state, name=qt_series.name(): self._on_hovered(
+                    point, state, name
+                )
+            )
+
+            all_series.append(qt_series)
+
+        all_points = [p for s in all_series for p in s.points() if p.x() > 0]
+        if all_points:
+            axis_x.setMax(max(p.x() for p in all_points) * 1.1)
+            axis_y.setMax(max(p.y() for p in all_points) * 1.1)
+
+        for qt_series in all_series:
+            self._chart.addSeries(qt_series)
+            qt_series.attachAxis(axis_x)
+            qt_series.attachAxis(axis_y)
 
         self._legend.rebuild(self._chart)
+
+    def _on_hovered(self, point: QPointF, state: bool, name: str):
+        if not state:
+            QToolTip.hideText()
+            return
+
+        QToolTip.showText(
+            QCursor.pos(),
+            f"<b>{name}</b><br>"
+            f"Строк: {int(point.x()):,}<br>"
+            f"Время: {point.y():.3f} сек",
+            self._view,
+        )
 
     def clear(self):
         self._chart.removeAllSeries()
