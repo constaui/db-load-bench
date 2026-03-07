@@ -5,11 +5,17 @@ from orchestrator.protocol import MethodRun
 
 ChartStore = list[MethodRun]
 
-GroupKey = tuple[str, str, str, Optional[int]]
+GroupKey = tuple[str, str, str, Optional[int], frozenset]
 
 
 def _group_key(run: MethodRun) -> GroupKey:
-    return (run.engine, run.db_type, run.method, run.batch_size)
+    return (
+        run.engine,
+        run.db_type,
+        run.method,
+        run.batch_size,
+        frozenset(run.db_config.items()),
+    )
 
 
 def _average_run(runs: list[MethodRun]) -> MethodRun:

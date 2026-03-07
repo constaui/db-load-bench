@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/jackc/pgx/v5/stdlib"  // pgx как database/sql драйвер
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func newSQLDB(dbType, host string, port int, user, password, database string) (*sql.DB, error) {
@@ -19,6 +19,8 @@ func newSQLDB(dbType, host string, port int, user, password, database string) (*
 		return nil, fmt.Errorf("sql.Open: %w", err)
 	}
 
+	
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping: %w", err)
 	}
@@ -30,7 +32,7 @@ func buildDSN(dbType, host string, port int, user, password, database string) (s
 	switch dbType {
 	case "mysql":
 		dsn := fmt.Sprintf(
-			"%s:%s@tcp(%s:%d)/%s",
+			"%s:%s@tcp(%s:%d)/%s?allowLocalInfile=true",
 			user, password, host, port, database,
 		)
 		return "mysql", dsn, nil

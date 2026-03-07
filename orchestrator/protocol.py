@@ -52,6 +52,8 @@ class MethodRun:
 
     method_config: dict[str, Optional[int]] = field(default_factory=dict)
 
+    db_config: dict[str, bool] = field(default_factory=dict)
+
     metrics: dict[str, float] = field(default_factory=dict)
 
     @property
