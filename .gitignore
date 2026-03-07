@@ -233,5 +233,3 @@ go.work.sum
 .vscode/
 
 results.json
-
-[^\.]*

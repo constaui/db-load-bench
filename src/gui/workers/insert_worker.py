@@ -1,4 +1,3 @@
-import time
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from orchestrator.process_manager import ProcessManager
@@ -38,8 +37,6 @@ class InsertWorker(QThread):
 
             csv_file = self.config["csv_file"]
             table = "Test"
-            method = self.config["method"]
-            insert_fn = getattr(db, method)
 
             self.log_message.emit("Подготовка таблицы...", "INFO")
             cursor = db.connection.cursor()

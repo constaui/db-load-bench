@@ -30,7 +30,6 @@ class ConfigWidget(QGroupBox):
         self.db_params_form.log_message.connect(self.log_message)
         self.db_selector.log_message.connect(self.log_message)
         self.method_selector.log_message.connect(self.log_message)
-
         self.db_params_form.load_from_env(self.db_selector.get_prefix())
 
         layout = QVBoxLayout()

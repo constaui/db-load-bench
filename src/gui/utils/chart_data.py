@@ -5,7 +5,7 @@ from orchestrator.protocol import MethodRun
 
 ChartStore = list[MethodRun]
 
-GroupKey = tuple[str, str, str, Optional[int], frozenset]
+GroupKey = tuple[str, str, str, Optional[int]]
 
 
 def _group_key(run: MethodRun) -> GroupKey:
@@ -14,7 +14,6 @@ def _group_key(run: MethodRun) -> GroupKey:
         run.db_type,
         run.method,
         run.batch_size,
-        frozenset(run.db_config.items()),
     )
 
 

@@ -18,15 +18,3 @@ class BaseDatabase(ABC):
     @abstractmethod
     def prepare(self, cursor, csv_file, table_name):
         pass
-
-    @abstractmethod
-    def default_insert(self, csv_file: str, table_name: str) -> int:
-        pass
-
-    @abstractmethod
-    def bulk_insert(self, csv_file: str, table_name: str, batch_size: int) -> int:
-        pass
-
-    @abstractmethod
-    def file_insert(self, csv_file: str, table_name: str) -> int:
-        pass

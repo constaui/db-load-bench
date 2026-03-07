@@ -208,5 +208,1325 @@
       "elapsed": 0.020425292,
       "rps": 48958.908396511535
     }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.08774295900366269,
+      "rps": 11396.9
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.062176125,
+      "rps": 16083.34388802776
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.08628066600067541,
+      "rps": 11590.1
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.08766654200007906,
+      "rps": 11406.9
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.08574029200099176,
+      "rps": 11663.1
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.057268,
+      "rps": 17461.758748341133
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.066406958,
+      "rps": 15058.662979261902
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.06915075,
+      "rps": 14461.159134210404
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.069684,
+      "rps": 14350.496527179841
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.072981667,
+      "rps": 13702.07123386206
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.070671875,
+      "rps": 14149.90050851205
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.067558333,
+      "rps": 14802.023016168858
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.070133334,
+      "rps": 14258.554997542251
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.068051125,
+      "rps": 14694.834214717243
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.066691208,
+      "rps": 14994.48023193702
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.066932792,
+      "rps": 14940.359876217324
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.0676025,
+      "rps": 14792.35235383307
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.065860167,
+      "rps": 15183.684547899795
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.069296208,
+      "rps": 14430.804063622067
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.07009575,
+      "rps": 14266.200161921372
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.069074,
+      "rps": 14477.227321423401
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.069373,
+      "rps": 14414.829977080419
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.072548792,
+      "rps": 13783.827027747064
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.070239583,
+      "rps": 14236.986572087138
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.065784041,
+      "rps": 15201.255271016264
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.067566834,
+      "rps": 14800.160682384496
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.056146709,
+      "rps": 17810.48289045757
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.061728375,
+      "rps": 16200.005265001711
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.062910708,
+      "rps": 15895.54515902126
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.060323334,
+      "rps": 16577.33307645098
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.061582541,
+      "rps": 16238.368598658506
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.06240175,
+      "rps": 16025.191601197082
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.060795292,
+      "rps": 16448.642108668548
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.060245833,
+      "rps": 16598.65836696125
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.060256584,
+      "rps": 16595.69682874821
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.065170042,
+      "rps": 15344.47376909777
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.059540958,
+      "rps": 16795.161408051245
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.0598445,
+      "rps": 16709.97334759251
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.058136416,
+      "rps": 17200.922740060207
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.058363667,
+      "rps": 17133.94739230487
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.062159709,
+      "rps": 16087.59140104726
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.061509125,
+      "rps": 16257.750374436313
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.059276083,
+      "rps": 16870.210536684754
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.061888459,
+      "rps": 16158.101464442669
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.058936792,
+      "rps": 16967.330016876385
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.059790666,
+      "rps": 16725.0185840044
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.059030375,
+      "rps": 16940.431091620205
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.06107975,
+      "rps": 16372.038195965111
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.017701458,
+      "rps": 56492.52168945631
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.016245959,
+      "rps": 61553.76854022591
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.014130292,
+      "rps": 70769.94587231461
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.014217416,
+      "rps": 70336.26926299406
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.013925208,
+      "rps": 71812.21278705496
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.013810458,
+      "rps": 72408.89476656025
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.013954125,
+      "rps": 71663.39702417744
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.013465416,
+      "rps": 74264.32276581727
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.01447325,
+      "rps": 69092.9818803655
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.015978792,
+      "rps": 62582.95370513616
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.016203875,
+      "rps": 61713.633313019265
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.01091275,
+      "rps": 91635.93044832879
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.014751125,
+      "rps": 67791.43963595996
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.014779375,
+      "rps": 67661.85985537276
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.016886125,
+      "rps": 59220.2177823509
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.013598291,
+      "rps": 73538.652761586
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.016160667,
+      "rps": 61878.63409350617
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.020630875,
+      "rps": 48471.0415820948
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.016757667,
+      "rps": 59674.17779575164
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.030742584,
+      "rps": 32528.170045823084
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.023966125,
+      "rps": 41725.5605568276
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.029595458,
+      "rps": 33788.96856402763
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.030052625,
+      "rps": 33274.96350152441
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.027669416,
+      "rps": 36140.98685711328
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.026695834,
+      "rps": 37459.02825137435
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.02552975,
+      "rps": 39169.9879552287
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.030590375,
+      "rps": 32690.02096247594
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.031583333,
+      "rps": 31662.269463454035
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.02224575,
+      "rps": 44952.40663947046
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.030028958,
+      "rps": 33301.1888058187
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.029164,
+      "rps": 34288.849266218625
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.028512292,
+      "rps": 35072.5925506094
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.028802334,
+      "rps": 34719.40850349142
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.030388333,
+      "rps": 32907.36612633539
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.08600029200169956,
+      "rps": 11627.9
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.07645266599865863,
+      "rps": 13080.0
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.057157292,
+      "rps": 17495.580441424692
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.073970125,
+      "rps": 13518.971341470628
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.016411083,
+      "rps": 60934.430713682945
+    }
+  },
+  {
+    "engine": "Go",
+    "db_type": "postgresql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.016331084,
+      "rps": 61232.922444094955
+    }
   }
 ]

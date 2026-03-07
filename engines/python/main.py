@@ -6,9 +6,14 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-
 from orchestrator.protocol import MethodRun
-from src.config.db import DB_CLASSES
+import inserter_mysql
+import inserter_pgsql
+
+ENGINES = {
+    "mysql": inserter_mysql,
+    "postgresql": inserter_pgsql,
+}
 
 
 def main():
@@ -25,6 +30,16 @@ def main():
     parser.add_argument("--batch-size", type=int, default=1000)
     args = parser.parse_args()
 
+    engine = ENGINES.get(args.db_type)
+    if engine is None:
+        print(f"Unknown db type: {args.db_type}", file=sys.stderr)
+        sys.exit(1)
+
+    insert_fn = getattr(engine, args.method, None)
+    if insert_fn is None:
+        print(f"Unknown method: {args.method}", file=sys.stderr)
+        sys.exit(1)
+
     conn_params = {
         "host": args.host,
         "port": args.port,
@@ -33,23 +48,12 @@ def main():
         "database": args.database,
     }
 
-    db_class = DB_CLASSES.get(args.db_type)
-    if db_class is None:
-        print(f"Unknown db type: {args.db_type}", file=sys.stderr)
-        sys.exit(1)
-
-    db = db_class(conn_params)
-    db.connect()
-
-    insert_fn = getattr(db, args.method)
     start = time.perf_counter()
     if args.method == "bulk_insert":
-        rows = insert_fn(args.csv, args.table, args.batch_size)
+        rows = insert_fn(conn_params, args.csv, args.table, args.batch_size)
     else:
-        rows = insert_fn(args.csv, args.table)
+        rows = insert_fn(conn_params, args.csv, args.table)
     elapsed = time.perf_counter() - start
-
-    db.close()
 
     run = MethodRun(
         engine="Python",
