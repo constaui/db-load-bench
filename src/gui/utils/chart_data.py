@@ -1,36 +1,6 @@
-from dataclasses import dataclass, field
 from typing import Optional
 
-
-@dataclass
-class MethodRun:
-    """Класс для сохраненного результата теста"""
-
-    engine: str
-    db_type: str
-    method: str
-
-    experiment_config: dict[str, int] = field(default_factory=dict)
-
-    method_config: dict[str, Optional[int]] = field(default_factory=dict)
-
-    metrics: dict[str, float] = field(default_factory=dict)
-
-    @property
-    def rows(self) -> int:
-        return self.experiment_config.get("rows", 0)
-
-    @property
-    def elapsed(self) -> float:
-        return self.metrics.get("elapsed", 0.0)
-
-    @property
-    def rps(self) -> float:
-        return self.metrics.get("rps", 0.0)
-
-    @property
-    def batch_size(self) -> Optional[int]:
-        return self.method_config.get("batch_size")
+from orchestrator.protocol import MethodRun
 
 
 ChartStore = list[MethodRun]

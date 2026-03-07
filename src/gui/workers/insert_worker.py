@@ -1,6 +1,7 @@
 import time
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from orchestrator.process_manager import ProcessManager
 from src.db import MySQLDatabase, PgSQLDatabase
 from src.db.exceptions import DatabaseConnectionError
 
@@ -47,44 +48,29 @@ class InsertWorker(QThread):
             cursor.close()
             self.log_message.emit("Таблица готова", "SUCCESS")
 
-            self.log_message.emit(f"Запуск {method}...", "INFO")
-
-            cursor = db.connection.cursor()
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-            cursor.close()
-
-            start = time.perf_counter()
-
-            if method == "bulk_insert":
-                rows = insert_fn(csv_file, table, self.config["batch_size"])
-            else:
-                rows = insert_fn(csv_file, table)
-
-            elapsed = time.perf_counter() - start
+            manager = ProcessManager(
+                engine=self.config["engine"],
+                conn_params={
+                    **self.config["conn_params"],
+                    "db_type": self.config["db_type"].lower(),
+                },
+            )
 
             self.log_message.emit(
-                f"Вставлено {rows} строк за {elapsed:.2f}с", "SUCCESS"
+                f"Запуск [{self.config['engine']}] {self.config['method']}...", "INFO"
             )
-            self.finished.emit(
-                {
-                    "engine": self.config["engine"],
-                    "db_type": self.config["db_type"],
-                    "method": method,
-                    "experiment_config": {"rows": rows},
-                    "method_config": {
-                        "batch_size": (
-                            self.config.get("batch_size")
-                            if method == "bulk_insert"
-                            else None
-                        ),
-                    },
-                    "metrics": {
-                        "elapsed": elapsed,
-                        "rps": round(rows / elapsed, 1) if elapsed > 0 else 0,
-                    },
-                }
+
+            result = manager.run(
+                method=self.config["method"],
+                csv_file=self.config["csv_file"],
+                table_name="Test",
+                batch_size=self.config.get("batch_size", 1000),
             )
+
+            self.log_message.emit(
+                f"Вставлено {result.rows} строк за {result.elapsed:.3f}с", "SUCCESS"
+            )
+            self.finished.emit(result.to_dict())
 
         except DatabaseConnectionError as e:
             self.log_message.emit(str(e), "ERROR")

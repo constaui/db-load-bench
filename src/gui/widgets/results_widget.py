@@ -74,14 +74,7 @@ class ResultsWidget(QGroupBox):
 
     @pyqtSlot(dict)
     def update_results(self, result: dict):
-        run = MethodRun(
-            engine=result["engine"],
-            db_type=result["db_type"],
-            method=result["method"],
-            experiment_config=result["experiment_config"],
-            method_config=result["method_config"],
-            metrics=result["metrics"],
-        )
+        run = MethodRun.from_dict(result)
         add_run(self._store, run)
         save_results(self._store)
         self._sync_selector(run.db_type)

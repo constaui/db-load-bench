@@ -1228,5 +1228,20 @@
       "elapsed": 0.0075686250020226,
       "rps": 132124.4
     }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "default_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.07210854200093308,
+      "rps": 13868.0
+    }
   }
 ]
