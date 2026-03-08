@@ -1993,5 +1993,1340 @@
       "elapsed": 0.013429,
       "rps": 74466.6
     }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1500
+    },
+    "metrics": {
+      "elapsed": 0.03761233299883315,
+      "rps": 26587.0
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1500
+    },
+    "metrics": {
+      "elapsed": 0.03836820799915586,
+      "rps": 26063.2
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1500
+    },
+    "metrics": {
+      "elapsed": 0.032584458000201266,
+      "rps": 30689.5
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1500
+    },
+    "metrics": {
+      "elapsed": 0.03186945800553076,
+      "rps": 31378.0
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1500
+    },
+    "metrics": {
+      "elapsed": 0.123099542,
+      "rps": 8123.5
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1500
+    },
+    "metrics": {
+      "elapsed": 0.052495041,
+      "rps": 19049.4
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 2000
+    },
+    "metrics": {
+      "elapsed": 0.051386459,
+      "rps": 19460.4
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 500
+    },
+    "metrics": {
+      "elapsed": 0.053822875,
+      "rps": 18579.5
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 100
+    },
+    "metrics": {
+      "elapsed": 0.052317625,
+      "rps": 19114.0
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 5100
+    },
+    "metrics": {
+      "elapsed": 0.051279,
+      "rps": 19501.2
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 5100
+    },
+    "metrics": {
+      "elapsed": 0.053289583,
+      "rps": 18765.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 5100
+    },
+    "metrics": {
+      "elapsed": 0.022361,
+      "rps": 44720.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.025142,
+      "rps": 39773.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.023274,
+      "rps": 42967.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "postgresql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.016442,
+      "rps": 60821.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.034269,
+      "rps": 29181.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.040661,
+      "rps": 24593.5
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.034183,
+      "rps": 29253.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.034386,
+      "rps": 29081.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.033316,
+      "rps": 30015.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.030109,
+      "rps": 33212.5
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.030736,
+      "rps": 32534.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.030098,
+      "rps": 33224.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.029878,
+      "rps": 33469.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.03,
+      "rps": 33333.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.031339,
+      "rps": 31908.8
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.028444,
+      "rps": 35156.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.033552,
+      "rps": 29804.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.023185,
+      "rps": 43130.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.035277,
+      "rps": 28347.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.03398,
+      "rps": 29429.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.033419,
+      "rps": 29923.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.0305,
+      "rps": 32787.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.031676,
+      "rps": 31569.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": 1000
+    },
+    "metrics": {
+      "elapsed": 0.031526,
+      "rps": 31720.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004468,
+      "rps": 223811.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.003905,
+      "rps": 256087.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004762,
+      "rps": 209997.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004959,
+      "rps": 201650.1
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005079,
+      "rps": 196894.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004835,
+      "rps": 206809.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.00435,
+      "rps": 229880.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004592,
+      "rps": 217785.8
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004933,
+      "rps": 202711.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004118,
+      "rps": 242851.1
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.002574,
+      "rps": 388557.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004516,
+      "rps": 221434.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004986,
+      "rps": 200541.5
+    }
+  },
+  {
+    "engine": "Python",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.024609667001641355,
+      "rps": 40634.4
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.046009958,
+      "rps": 21734.4
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.039593042,
+      "rps": 25257.0
+    }
+  },
+  {
+    "engine": "Java",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.040174375,
+      "rps": 24891.5
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.002934,
+      "rps": 340821.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004575,
+      "rps": 218579.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004714,
+      "rps": 212117.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004649,
+      "rps": 215100.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004517,
+      "rps": 221389.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005936,
+      "rps": 168453.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005861,
+      "rps": 170633.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004489,
+      "rps": 222762.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005538,
+      "rps": 180574.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004557,
+      "rps": 219438.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005086,
+      "rps": 196602.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004999,
+      "rps": 200058.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005062,
+      "rps": 197563.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005418,
+      "rps": 184552.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004476,
+      "rps": 223397.1
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004842,
+      "rps": 206538.7
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004526,
+      "rps": 220945.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005066,
+      "rps": 197374.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004531,
+      "rps": 220703.8
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004934,
+      "rps": 202656.5
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005642,
+      "rps": 177230.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.00452,
+      "rps": 221255.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.00449,
+      "rps": 222719.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004978,
+      "rps": 200888.9
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.002563,
+      "rps": 390231.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005245,
+      "rps": 190653.2
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005096,
+      "rps": 196230.8
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004508,
+      "rps": 221815.6
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004604,
+      "rps": 217182.8
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004489,
+      "rps": 222785.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005075,
+      "rps": 197041.1
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004941,
+      "rps": 202395.0
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004685,
+      "rps": 213460.4
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.005288,
+      "rps": 189092.5
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004613,
+      "rps": 216792.3
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.00528,
+      "rps": 189389.5
+    }
+  },
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "file_insert",
+    "experiment_config": {
+      "rows": 1000
+    },
+    "method_config": {
+      "batch_size": null
+    },
+    "metrics": {
+      "elapsed": 0.004769,
+      "rps": 209680.2
+    }
   }
 ]

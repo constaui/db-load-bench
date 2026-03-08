@@ -144,7 +144,7 @@ public class InserterPgSQL implements Inserter {
             quote(tableName)
         );
 
-        conn.setAutoCommit(false);  // ← добавляем
+        conn.setAutoCommit(false);
         try {
             CopyManager copyManager = new CopyManager((BaseConnection) conn);
             copyManager.copyIn(copySQL, new StringReader(buf.toString()));

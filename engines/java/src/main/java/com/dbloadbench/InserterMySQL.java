@@ -128,9 +128,15 @@ public class InserterMySQL implements Inserter {
             IGNORE 1 ROWS
             """, absPath, quote(tableName));
 
+        conn.setAutoCommit(false);
         try (Statement st = conn.createStatement()) {
             st.execute(sql);
             conn.commit();
+        } catch (Exception e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
         }
 
         return data.rows.size();

@@ -1,138 +1,306 @@
+from __future__ import annotations
+
+import csv as csv_module
+import io
+from collections import defaultdict
+from typing import Optional
+
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QTableWidget,
     QTableWidgetItem,
+    QPushButton,
+    QFileDialog,
+    QLabel,
 )
+from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtCore import Qt
 
-from ..utils.chart_data import ChartStore, series_label
+from ..utils.chart_data import ChartStore
 
-HEADERS = [
-    "Язык",
-    "СУБД",
-    "Метод",
-    "Строк",
-    "Время (сек)",
-    "Строк/сек",
-    "Частота (1/сек)",
-    "Batch size",
-]
+# ─── Константы ────────────────────────────────────────────────────────────────
+
+METHODS = ["default_insert", "bulk_insert", "file_insert"]
+METHOD_LABELS = {
+    "default_insert": "default",
+    "bulk_insert": "bulk",
+    "file_insert": "file",
+}
+
+# Цвета для градиента RPS (светло-зелёный → тёмно-зелёный)
+COLOR_EMPTY = QColor("#f5f5f5")
+COLOR_MIN = QColor("#c8e6c9")
+COLOR_MAX = QColor("#1b5e20")
+COLOR_SPEEDUP = QColor("#e3f2fd")  # фон строки speedup
+COLOR_HEADER = QColor("#37474f")  # фон заголовков
+COLOR_SUBHDR = QColor("#546e7a")
 
 
-NUMERIC_COLUMNS = {3, 4, 5, 6, 7}
+# ─── Вспомогательные функции ──────────────────────────────────────────────────
 
 
-class NumericItem(QTableWidgetItem):
-    """QTableWidgetItem с числовой сортировкой."""
+def _lerp_color(color_a: QColor, color_b: QColor, t: float) -> QColor:
+    """Линейная интерполяция между двумя цветами, t ∈ [0, 1]."""
+    r = int(color_a.red() + (color_b.red() - color_a.red()) * t)
+    g = int(color_a.green() + (color_b.green() - color_a.green()) * t)
+    b = int(color_a.blue() + (color_b.blue() - color_a.blue()) * t)
+    return QColor(r, g, b)
 
-    def __lt__(self, other: QTableWidgetItem) -> bool:
-        try:
-            return float(self.text()) < float(other.text())
-        except ValueError:
-            return self.text() < other.text()
+
+def _header_item(text: str, bg: QColor = COLOR_HEADER) -> QTableWidgetItem:
+    item = QTableWidgetItem(text)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setBackground(bg)
+    font = QFont()
+    font.setBold(True)
+    item.setFont(font)
+    fg = QColor("white")
+    item.setForeground(fg)
+    item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+    return item
+
+
+def _data_item(text: str, bg: QColor = COLOR_EMPTY) -> QTableWidgetItem:
+    item = QTableWidgetItem(text)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setBackground(bg)
+    item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+    return item
+
+
+# ─── Агрегация данных ─────────────────────────────────────────────────────────
+
+
+def _aggregate(store: ChartStore) -> dict[tuple, float]:
+    """
+    Возвращает усреднённый RPS по ключу (engine, db_type, method).
+    """
+    buckets: dict[tuple, list[float]] = defaultdict(list)
+    for run in store:
+        key = (run.engine, run.db_type, run.method)
+        buckets[key].append(run.rps)
+    return {k: sum(v) / len(v) for k, v in buckets.items()}
+
+
+# ─── Виджет ───────────────────────────────────────────────────────────────────
 
 
 class ResultsTableWidget(QWidget):
-    """Таблица с результатами тестов"""
+    """
+    Сводная таблица средних значений RPS по осям:
+        строки  — языки программирования
+        столбцы — (СУБД × метод вставки)
+
+    Для каждого языка добавляется подстрока «ускорение» (×N),
+    показывающая во сколько раз bulk/file быстрее default_insert.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._store: ChartStore = []
+
+        # Заголовок
+        title = QLabel("Средний RPS по языкам, методам и СУБД")
+        title_font = QFont()
+        title_font.setBold(True)
+        title_font.setPointSize(11)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Кнопка экспорта
+        self._export_btn = QPushButton("Экспорт в CSV")
+        self._export_btn.clicked.connect(self._export_csv)
+
+        top_bar = QHBoxLayout()
+        top_bar.addWidget(title, stretch=1)
+        top_bar.addWidget(self._export_btn)
+
         self._table = QTableWidget()
-        self._table.setColumnCount(len(HEADERS))
-        self._table.setHorizontalHeaderLabels(HEADERS)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._table.setAlternatingRowColors(True)
-        self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.setAlternatingRowColors(False)
         self._table.verticalHeader().setVisible(False)
-
-        self._table.setSortingEnabled(True)
-
-        self._sort_state: dict[int, Qt.SortOrder | None] = {}
-        self._current_sort_col: int | None = None
-
-        header = self._table.horizontalHeader()
-        header.setSectionsClickable(True)
-        header.sectionClicked.connect(self._on_header_clicked)
-
-        self._table.setSortingEnabled(False)
+        self._table.horizontalHeader().setVisible(False)
+        self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.addLayout(top_bar)
         layout.addWidget(self._table)
         self.setLayout(layout)
 
-        self._store: ChartStore = {}
+    # ─── Публичный интерфейс ──────────────────────────────────────────────────
 
-    def refresh(self, store: ChartStore):
+    def refresh(self, store: ChartStore) -> None:
         self._store = store
-        self._fill_table()
+        self._rebuild()
 
-    def _fill_table(self):
-        sort_col = self._current_sort_col
-        sort_order = self._sort_state.get(sort_col) if sort_col is not None else None
-
-        self._table.setRowCount(0)
-
-        for run in self._store:
-            row = self._table.rowCount()
-            self._table.insertRow(row)
-
-            batch_text = str(run.batch_size) if run.batch_size is not None else "—"
-            frequency = round(1 / run.elapsed, 3) if run.elapsed > 0 else 0
-
-            self._table.setItem(row, 0, self._cell(run.engine, numeric=False))
-            self._table.setItem(row, 1, self._cell(run.db_type, numeric=False))
-            self._table.setItem(row, 2, self._cell(run.method, numeric=False))
-            self._table.setItem(row, 3, self._cell(str(run.rows), numeric=True))
-            self._table.setItem(row, 4, self._cell(f"{run.elapsed:.3f}", numeric=True))
-            self._table.setItem(row, 5, self._cell(str(run.rps), numeric=True))
-            self._table.setItem(row, 6, self._cell(str(frequency), numeric=True))
-            self._table.setItem(row, 7, self._cell(batch_text, numeric=True))
-
-        if sort_col is not None and sort_order is not None:
-            self._table.sortItems(sort_col, sort_order)
-            self._update_indicator(sort_col, sort_order)
-
-    def clear(self):
+    def clear(self) -> None:
         self._store = []
-        self._sort_state = {}
-        self._current_sort_col = None
+        self._table.clearContents()
         self._table.setRowCount(0)
-        self._table.horizontalHeader().setSortIndicatorShown(False)
+        self._table.setColumnCount(0)
 
-    def _on_header_clicked(self, col: int):
-        """
-        Три состояния по кругу:
-        None (дефолт) → Descending → Ascending → None → ...
-        """
-        current = self._sort_state.get(col)
+    # ─── Построение таблицы ───────────────────────────────────────────────────
 
-        if current is None:
-            next_order = Qt.SortOrder.DescendingOrder
-        elif current == Qt.SortOrder.DescendingOrder:
-            next_order = Qt.SortOrder.AscendingOrder
-        else:
-            next_order = None
+    def _rebuild(self) -> None:
+        if not self._store:
+            self.clear()
+            return
 
-        self._sort_state = {col: next_order}
-        self._current_sort_col = col if next_order is not None else None
+        avg = _aggregate(self._store)
 
-        if next_order is not None:
-            self._table.sortItems(col, next_order)
-            self._update_indicator(col, next_order)
-        else:
-            self._table.horizontalHeader().setSortIndicatorShown(False)
-            self._fill_table()
+        engines = sorted({run.engine for run in self._store})
+        db_types = sorted({run.db_type for run in self._store})
 
-    def _update_indicator(self, col: int, order: Qt.SortOrder):
-        header = self._table.horizontalHeader()
-        header.setSortIndicatorShown(True)
-        header.setSortIndicator(col, order)
+        # Число столбцов данных: len(db_types) × len(METHODS)
+        n_data_cols = len(db_types) * len(METHODS)
+        n_cols = 1 + n_data_cols  # +1 для колонки "Язык"
 
-    @staticmethod
-    def _cell(text: str, numeric: bool = False) -> QTableWidgetItem:
-        item = NumericItem(text) if numeric else QTableWidgetItem(text)
-        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        return item
+        # Число строк: 2 строки заголовков + 2 строки на каждый язык (данные + speedup)
+        n_data_rows = len(engines) * 2
+        n_rows = 2 + n_data_rows
+
+        self._table.setRowCount(n_rows)
+        self._table.setColumnCount(n_cols)
+
+        # ── Строка 0: заголовки СУБД ──────────────────────────────────────────
+        self._table.setItem(0, 0, _header_item(""))
+        for di, db in enumerate(db_types):
+            col_start = 1 + di * len(METHODS)
+            # Span объединяет len(METHODS) ячеек
+            self._table.setItem(0, col_start, _header_item(db))
+            self._table.setSpan(0, col_start, 1, len(METHODS))
+
+        # ── Строка 1: заголовки методов ───────────────────────────────────────
+        self._table.setItem(1, 0, _header_item("Язык", COLOR_SUBHDR))
+        for di, db in enumerate(db_types):
+            for mi, method in enumerate(METHODS):
+                col = 1 + di * len(METHODS) + mi
+                self._table.setItem(
+                    1, col, _header_item(METHOD_LABELS[method], COLOR_SUBHDR)
+                )
+
+        # ── Собираем все RPS значения для нормализации цвета ──────────────────
+        all_rps = [v for v in avg.values() if v > 0]
+        rps_min = min(all_rps) if all_rps else 0.0
+        rps_max = max(all_rps) if all_rps else 1.0
+
+        def rps_color(rps: Optional[float]) -> QColor:
+            if rps is None or rps <= 0:
+                return COLOR_EMPTY
+            t = (rps - rps_min) / (rps_max - rps_min + 1e-9)
+            return _lerp_color(COLOR_MIN, COLOR_MAX, t)
+
+        def rps_fg(rps: Optional[float]) -> QColor:
+            """Белый текст на тёмном фоне, тёмный на светлом."""
+            if rps is None or rps <= 0:
+                return QColor("black")
+            t = (rps - rps_min) / (rps_max - rps_min + 1e-9)
+            return QColor("white") if t > 0.5 else QColor("#212121")
+
+        # ── Строки данных ─────────────────────────────────────────────────────
+        for ei, engine in enumerate(engines):
+            data_row = 2 + ei * 2  # строка с RPS
+            speedup_row = data_row + 1  # строка с ускорением
+
+            # Колонка "Язык" — объединяем 2 строки
+            lang_item = _header_item(engine, QColor("#455a64"))
+            self._table.setItem(data_row, 0, lang_item)
+            self._table.setSpan(data_row, 0, 2, 1)
+
+            for di, db in enumerate(db_types):
+                default_rps = avg.get((engine, db, "default_insert"))
+
+                for mi, method in enumerate(METHODS):
+                    col = 1 + di * len(METHODS) + mi
+                    rps = avg.get((engine, db, method))
+
+                    # ── Ячейка RPS ────────────────────────────────────────────
+                    if rps is not None:
+                        text = f"{rps:,.0f}"
+                        bg = rps_color(rps)
+                        item = _data_item(text, bg)
+                        item.setForeground(rps_fg(rps))
+                    else:
+                        item = _data_item("—")
+                    self._table.setItem(data_row, col, item)
+
+                    # ── Ячейка ускорения ──────────────────────────────────────
+                    if method == "default_insert":
+                        sp_item = _data_item("×1")
+                        sp_item.setBackground(COLOR_SPEEDUP)
+                        sp_item.setForeground(QColor("#555"))
+                        font = QFont()
+                        font.setItalic(True)
+                        sp_item.setFont(font)
+                    elif rps is not None and default_rps and default_rps > 0:
+                        ratio = rps / default_rps
+                        sp_item = _data_item(f"×{ratio:.1f}")
+                        sp_item.setBackground(COLOR_SPEEDUP)
+                        # Подсвечиваем значительное ускорение
+                        if ratio >= 10:
+                            font = QFont()
+                            font.setBold(True)
+                            sp_item.setFont(font)
+                            sp_item.setForeground(QColor("#1b5e20"))
+                    else:
+                        sp_item = _data_item("—")
+                        sp_item.setBackground(COLOR_SPEEDUP)
+
+                    self._table.setItem(speedup_row, col, sp_item)
+
+            # Метка строки speedup в колонке 0 уже покрыта span выше
+
+        # ── Размеры ───────────────────────────────────────────────────────────
+        self._table.resizeColumnsToContents()
+        self._table.resizeRowsToContents()
+        self._table.setColumnWidth(0, 90)
+
+    # ─── Экспорт CSV ──────────────────────────────────────────────────────────
+
+    def _export_csv(self) -> None:
+        if not self._store:
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Сохранить CSV", "results_summary.csv", "CSV Files (*.csv)"
+        )
+        if not path:
+            return
+
+        avg = _aggregate(self._store)
+        engines = sorted({run.engine for run in self._store})
+        db_types = sorted({run.db_type for run in self._store})
+
+        buf = io.StringIO()
+        writer = csv_module.writer(buf)
+
+        # Заголовок
+        header = ["Язык"]
+        for db in db_types:
+            for method in METHODS:
+                header.append(f"{db} / {METHOD_LABELS[method]} (RPS)")
+        writer.writerow(header)
+
+        for engine in engines:
+            rps_row = [engine]
+            speedup_row = [f"{engine} (ускорение)"]
+            for db in db_types:
+                default_rps = avg.get((engine, db, "default_insert"))
+                for method in METHODS:
+                    rps = avg.get((engine, db, method))
+                    rps_row.append(f"{rps:.1f}" if rps else "")
+                    if method == "default_insert":
+                        speedup_row.append("base")
+                    elif rps and default_rps:
+                        speedup_row.append(f"x{rps / default_rps:.2f}")
+                    else:
+                        speedup_row.append("")
+            writer.writerow(rps_row)
+            writer.writerow(speedup_row)
+
+        with open(path, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(buf.getvalue())
