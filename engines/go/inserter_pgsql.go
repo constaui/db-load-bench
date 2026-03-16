@@ -148,7 +148,6 @@ func (ins *PgSQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 		return 0, err
 	}
 
-	// Формируем CSV в памяти с очищенными заголовками
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
 
@@ -160,7 +159,6 @@ func (ins *PgSQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 	writer.WriteAll(data.Rows)
 	writer.Flush()
 
-	// Прямое pgx соединение для COPY FROM STDIN
 	ctx := context.Background()
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",

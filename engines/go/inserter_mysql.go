@@ -45,8 +45,6 @@ func (ins *MySQLInserter) placeholder(_ int) string {
 	return "?"
 }
 
-// ─── DefaultInsert ────────────────────────────────────────────────────────────
-
 func (ins *MySQLInserter) DefaultInsert(csvFile, tableName string) (int, error) {
 	data, err := readCSV(csvFile)
 	if err != nil {
@@ -88,8 +86,6 @@ func (ins *MySQLInserter) DefaultInsert(csvFile, tableName string) (int, error) 
 
 	return len(data.Rows), tx.Commit()
 }
-
-// ─── BulkInsert ───────────────────────────────────────────────────────────────
 
 func (ins *MySQLInserter) BulkInsert(csvFile, tableName string, batchSize int) (int, error) {
 	data, err := readCSV(csvFile)
@@ -146,8 +142,6 @@ func (ins *MySQLInserter) BulkInsert(csvFile, tableName string, batchSize int) (
 	return total, nil
 }
 
-// ─── FileInsert ───────────────────────────────────────────────────────────────
-
 func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 	data, err := readCSV(csvFile)
 	if err != nil {
@@ -176,8 +170,6 @@ func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 
 	return rowCount, nil
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 func toAbsPath(path string) (string, error) {
 	if strings.HasPrefix(path, "/") {

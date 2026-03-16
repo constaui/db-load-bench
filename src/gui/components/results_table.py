@@ -20,8 +20,6 @@ from PyQt6.QtCore import Qt
 
 from ..utils.chart_data import ChartStore
 
-# ─── Константы ────────────────────────────────────────────────────────────────
-
 METHODS = ["default_insert", "bulk_insert", "file_insert"]
 METHOD_LABELS = {
     "default_insert": "default",
@@ -29,16 +27,12 @@ METHOD_LABELS = {
     "file_insert": "file",
 }
 
-# Цвета для градиента RPS (светло-зелёный → тёмно-зелёный)
 COLOR_EMPTY = QColor("#f5f5f5")
 COLOR_MIN = QColor("#c8e6c9")
 COLOR_MAX = QColor("#1b5e20")
 COLOR_SPEEDUP = QColor("#e3f2fd")  # фон строки speedup
 COLOR_HEADER = QColor("#37474f")  # фон заголовков
 COLOR_SUBHDR = QColor("#546e7a")
-
-
-# ─── Вспомогательные функции ──────────────────────────────────────────────────
 
 
 def _lerp_color(color_a: QColor, color_b: QColor, t: float) -> QColor:
@@ -70,9 +64,6 @@ def _data_item(text: str, bg: QColor = COLOR_EMPTY) -> QTableWidgetItem:
     return item
 
 
-# ─── Агрегация данных ─────────────────────────────────────────────────────────
-
-
 def _aggregate(store: ChartStore) -> dict[tuple, float]:
     """
     Возвращает усреднённый RPS по ключу (engine, db_type, method).
@@ -82,9 +73,6 @@ def _aggregate(store: ChartStore) -> dict[tuple, float]:
         key = (run.engine, run.db_type, run.method)
         buckets[key].append(run.rps)
     return {k: sum(v) / len(v) for k, v in buckets.items()}
-
-
-# ─── Виджет ───────────────────────────────────────────────────────────────────
 
 
 class ResultsTableWidget(QWidget):
@@ -102,7 +90,6 @@ class ResultsTableWidget(QWidget):
 
         self._store: ChartStore = []
 
-        # Заголовок
         title = QLabel("Средний RPS по языкам, методам и СУБД")
         title_font = QFont()
         title_font.setBold(True)
@@ -110,7 +97,6 @@ class ResultsTableWidget(QWidget):
         title.setFont(title_font)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Кнопка экспорта
         self._export_btn = QPushButton("Экспорт в CSV")
         self._export_btn.clicked.connect(self._export_csv)
 
@@ -131,8 +117,6 @@ class ResultsTableWidget(QWidget):
         layout.addWidget(self._table)
         self.setLayout(layout)
 
-    # ─── Публичный интерфейс ──────────────────────────────────────────────────
-
     def refresh(self, store: ChartStore) -> None:
         self._store = store
         self._rebuild()
@@ -143,38 +127,35 @@ class ResultsTableWidget(QWidget):
         self._table.setRowCount(0)
         self._table.setColumnCount(0)
 
-    # ─── Построение таблицы ───────────────────────────────────────────────────
-
     def _rebuild(self) -> None:
         if not self._store:
             self.clear()
             return
 
         avg = _aggregate(self._store)
-
         engines = sorted({run.engine for run in self._store})
         db_types = sorted({run.db_type for run in self._store})
 
-        # Число столбцов данных: len(db_types) × len(METHODS)
-        n_data_cols = len(db_types) * len(METHODS)
-        n_cols = 1 + n_data_cols  # +1 для колонки "Язык"
+        all_rps = [v for v in avg.values() if v > 0]
+        rps_min = min(all_rps) if all_rps else 1.0
+        rps_max = max(all_rps) if all_rps else 1.0
 
-        # Число строк: 2 строки заголовков + 2 строки на каждый язык (данные + speedup)
+        n_data_cols = len(db_types) * len(METHODS)
+        n_cols = 1 + n_data_cols
+
         n_data_rows = len(engines) * 2
         n_rows = 2 + n_data_rows
 
         self._table.setRowCount(n_rows)
         self._table.setColumnCount(n_cols)
 
-        # ── Строка 0: заголовки СУБД ──────────────────────────────────────────
         self._table.setItem(0, 0, _header_item(""))
         for di, db in enumerate(db_types):
             col_start = 1 + di * len(METHODS)
-            # Span объединяет len(METHODS) ячеек
+
             self._table.setItem(0, col_start, _header_item(db))
             self._table.setSpan(0, col_start, 1, len(METHODS))
 
-        # ── Строка 1: заголовки методов ───────────────────────────────────────
         self._table.setItem(1, 0, _header_item("Язык", COLOR_SUBHDR))
         for di, db in enumerate(db_types):
             for mi, method in enumerate(METHODS):
@@ -183,83 +164,63 @@ class ResultsTableWidget(QWidget):
                     1, col, _header_item(METHOD_LABELS[method], COLOR_SUBHDR)
                 )
 
-        # ── Собираем все RPS значения для нормализации цвета ──────────────────
         all_rps = [v for v in avg.values() if v > 0]
         rps_min = min(all_rps) if all_rps else 0.0
         rps_max = max(all_rps) if all_rps else 1.0
 
-        def rps_color(rps: Optional[float]) -> QColor:
-            if rps is None or rps <= 0:
-                return COLOR_EMPTY
-            t = (rps - rps_min) / (rps_max - rps_min + 1e-9)
-            return _lerp_color(COLOR_MIN, COLOR_MAX, t)
-
-        def rps_fg(rps: Optional[float]) -> QColor:
-            """Белый текст на тёмном фоне, тёмный на светлом."""
-            if rps is None or rps <= 0:
-                return QColor("black")
-            t = (rps - rps_min) / (rps_max - rps_min + 1e-9)
-            return QColor("white") if t > 0.5 else QColor("#212121")
-
-        # ── Строки данных ─────────────────────────────────────────────────────
         for ei, engine in enumerate(engines):
-            data_row = 2 + ei * 2  # строка с RPS
-            speedup_row = data_row + 1  # строка с ускорением
+            data_row = 2 + ei * 2
+            speedup_row = data_row + 1
 
-            # Колонка "Язык" — объединяем 2 строки
             lang_item = _header_item(engine, QColor("#455a64"))
             self._table.setItem(data_row, 0, lang_item)
             self._table.setSpan(data_row, 0, 2, 1)
 
             for di, db in enumerate(db_types):
-                default_rps = avg.get((engine, db, "default_insert"))
-
                 for mi, method in enumerate(METHODS):
                     col = 1 + di * len(METHODS) + mi
                     rps = avg.get((engine, db, method))
 
-                    # ── Ячейка RPS ────────────────────────────────────────────
                     if rps is not None:
-                        text = f"{rps:,.0f}"
-                        bg = rps_color(rps)
-                        item = _data_item(text, bg)
-                        item.setForeground(rps_fg(rps))
+                        t = (rps - rps_min) / (rps_max - rps_min + 1e-9)
+                        bg = _lerp_color(COLOR_MIN, COLOR_MAX, t)
+                        item = _data_item(f"{rps:,.0f}", bg)
+                        item.setForeground(
+                            QColor("white") if t > 0.5 else QColor("#212121")
+                        )
                     else:
                         item = _data_item("—")
                     self._table.setItem(data_row, col, item)
 
-                    # ── Ячейка ускорения ──────────────────────────────────────
-                    if method == "default_insert":
-                        sp_item = _data_item("×1")
-                        sp_item.setBackground(COLOR_SPEEDUP)
-                        sp_item.setForeground(QColor("#555"))
-                        font = QFont()
-                        font.setItalic(True)
-                        sp_item.setFont(font)
-                    elif rps is not None and default_rps and default_rps > 0:
-                        ratio = rps / default_rps
+                    if rps is not None and rps > 0:
+                        ratio = rps / rps_min
+                        is_min = abs(rps - rps_min) < 1
+                        is_max = abs(rps - rps_max) < 1
+
                         sp_item = _data_item(f"×{ratio:.1f}")
                         sp_item.setBackground(COLOR_SPEEDUP)
-                        # Подсвечиваем значительное ускорение
-                        if ratio >= 10:
+
+                        if is_min:
+                            sp_item.setBackground(QColor("#ffebee"))
+                            sp_item.setForeground(QColor("#b71c1c"))
                             font = QFont()
                             font.setBold(True)
                             sp_item.setFont(font)
+                        elif is_max:
+                            sp_item.setBackground(QColor("#e8f5e9"))
                             sp_item.setForeground(QColor("#1b5e20"))
+                            font = QFont()
+                            font.setBold(True)
+                            sp_item.setFont(font)
                     else:
                         sp_item = _data_item("—")
                         sp_item.setBackground(COLOR_SPEEDUP)
 
                     self._table.setItem(speedup_row, col, sp_item)
 
-            # Метка строки speedup в колонке 0 уже покрыта span выше
-
-        # ── Размеры ───────────────────────────────────────────────────────────
         self._table.resizeColumnsToContents()
         self._table.resizeRowsToContents()
         self._table.setColumnWidth(0, 90)
-
-    # ─── Экспорт CSV ──────────────────────────────────────────────────────────
 
     def _export_csv(self) -> None:
         if not self._store:
@@ -278,7 +239,6 @@ class ResultsTableWidget(QWidget):
         buf = io.StringIO()
         writer = csv_module.writer(buf)
 
-        # Заголовок
         header = ["Язык"]
         for db in db_types:
             for method in METHODS:

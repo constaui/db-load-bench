@@ -48,8 +48,6 @@ impl PgSQLInserter {
 
 impl Inserter for PgSQLInserter {
 
-    // ─── default_insert ───────────────────────────────────────────────────────
-
     fn default_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
         let data  = csv_read(csv_file)?;
         let ncols = data.headers.len();
@@ -72,8 +70,6 @@ impl Inserter for PgSQLInserter {
         tx.commit()?;
         Ok(data.rows.len())
     }
-
-    // ─── bulk_insert ──────────────────────────────────────────────────────────
 
     fn bulk_insert(&mut self, csv_file: &str, table: &str,
                    batch_size: usize) -> Result<usize> {
@@ -112,28 +108,9 @@ impl Inserter for PgSQLInserter {
         Ok(total)
     }
 
-    // ─── file_insert — COPY FROM STDIN ────────────────────────────────────────
-
     fn file_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
-        let data = csv_read(csv_file)?;
-
-        // Формируем CSV в памяти
-        let mut buf = String::new();
-        let header_line = data.headers.iter()
-            .map(|h| Self::escape_csv_field(h))
-            .collect::<Vec<_>>()
-            .join(",");
-        buf.push_str(&header_line);
-        buf.push('\n');
-
-        for row in &data.rows {
-            let line = row.iter()
-                .map(|v| Self::escape_csv_field(v))
-                .collect::<Vec<_>>()
-                .join(",");
-            buf.push_str(&line);
-            buf.push('\n');
-        }
+        let content = std::fs::read_to_string(csv_file)?;
+        let row_count = content.lines().count().saturating_sub(1);
 
         let copy_sql = format!(
             "COPY {} FROM STDIN WITH (FORMAT csv, HEADER true)",
@@ -144,12 +121,14 @@ impl Inserter for PgSQLInserter {
             .copy_in(&copy_sql)
             .map_err(|e| anyhow!("COPY error: {}", e))?;
 
-        std::io::Write::write_all(&mut writer, buf.as_bytes())
+        let mut file = std::fs::File::open(csv_file)
+            .map_err(|e| anyhow!("open file: {}", e))?;
+        std::io::copy(&mut file, &mut writer)
             .map_err(|e| anyhow!("COPY write error: {}", e))?;
 
         writer.finish()
             .map_err(|e| anyhow!("COPY finish error: {}", e))?;
 
-        Ok(data.rows.len())
+        Ok(row_count)
     }
 }

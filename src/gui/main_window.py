@@ -1,4 +1,11 @@
-from PyQt6.QtWidgets import QMainWindow, QPushButton, QSplitter, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import (
+    QMainWindow,
+    QPushButton,
+    QSplitter,
+    QWidget,
+    QVBoxLayout,
+    QProgressBar,
+)
 from PyQt6.QtCore import Qt
 
 from .widgets import LogWidget, ConfigWidget, ResultsWidget
@@ -17,6 +24,9 @@ class MainWindow(QMainWindow):
         self.results_widget = ResultsWidget()
         self.log_widget = LogWidget()
         self.run_btn = QPushButton("Выполнить")
+        self._progress = QProgressBar()
+        self._progress.setVisible(False)
+        self._progress.setFormat("Прогон %v из %m")
 
         self.run_btn.clicked.connect(self._on_run_clicked)
         self.config_widget.log_message.connect(self.log_widget.log)
@@ -30,6 +40,7 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.addWidget(self.config_widget)
+        left_layout.addWidget(self._progress)
         left_layout.addWidget(self.run_btn)
 
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -55,6 +66,15 @@ class MainWindow(QMainWindow):
         self.worker.finished.connect(self.results_widget.update_results)
         self.worker.finished.connect(lambda: self.run_btn.setEnabled(True))
         self.worker.error.connect(lambda: self.run_btn.setEnabled(True))
+        self.worker.run_progress.connect(self._on_progress)
+        self.worker.finished.connect(lambda _: None)
 
         self.run_btn.setEnabled(False)
         self.worker.start()
+
+    def _on_progress(self, current: int, total: int):
+        self._progress.setVisible(True)
+        self._progress.setMaximum(total)
+        self._progress.setValue(current)
+        if current == total:
+            self._progress.setVisible(False)

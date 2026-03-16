@@ -51,7 +51,7 @@ class _LegendItem(QWidget):
         dot.setFixedWidth(16)
 
         text = QLabel(label)
-        text.setWordWrap(True)  # перенос длинных названий
+        text.setWordWrap(True)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(4, 2, 8, 2)

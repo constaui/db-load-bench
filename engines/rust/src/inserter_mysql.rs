@@ -3,6 +3,8 @@ use crate::inserter::{ConnParams, Inserter};
 use anyhow::{Result, anyhow};
 use mysql::prelude::*;
 use mysql::*;
+use std::fs;
+use std::io::Write;
 
 pub struct MySQLInserter {
     conn: Conn,
@@ -14,8 +16,18 @@ impl MySQLInserter {
             "mysql://{}:{}@{}:{}/{}",
             p.user, p.password, p.host, p.port, p.database
         );
-        let opts = Opts::from_url(&url)?;
-        let conn = Conn::new(opts)?;
+
+        let builder = OptsBuilder::from_opts(Opts::from_url(&url)?)
+            .local_infile_handler(Some(LocalInfileHandler::new(
+                |file_name: &[u8], infile: &mut mysql::LocalInfile<'_>| {
+                    let path = String::from_utf8_lossy(file_name).to_string();
+                    let data = fs::read(&path)?;
+                    infile.write_all(&data)?;
+                    Ok(())
+                },
+            )));
+
+        let conn = Conn::new(builder)?;
         Ok(Self { conn })
     }
 
@@ -33,8 +45,6 @@ impl MySQLInserter {
 }
 
 impl Inserter for MySQLInserter {
-
-    // ─── default_insert ───────────────────────────────────────────────────────
 
     fn default_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
         let data  = csv_read(csv_file)?;
@@ -56,8 +66,6 @@ impl Inserter for MySQLInserter {
         Ok(data.rows.len())
     }
 
-    // ─── bulk_insert ──────────────────────────────────────────────────────────
-
     fn bulk_insert(&mut self, csv_file: &str, table: &str,
                    batch_size: usize) -> Result<usize> {
         let data   = csv_read(csv_file)?;
@@ -67,7 +75,6 @@ impl Inserter for MySQLInserter {
         let mut total = 0;
 
         for chunk in data.rows.chunks(batch_size) {
-            // INSERT INTO t (cols) VALUES (?,?), (?,?) ...
             let row_phs = format!("({})", vec!["?"; ncols].join(", "));
             let all_phs = vec![row_phs.as_str(); chunk.len()].join(", ");
             let sql = format!("INSERT INTO {} ({}) VALUES {}",
@@ -87,26 +94,27 @@ impl Inserter for MySQLInserter {
         Ok(total)
     }
 
-    // ─── file_insert ──────────────────────────────────────────────────────────
-
     fn file_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
-        let data = csv_read(csv_file)?;
-        let count = data.rows.len();
+        let path = std::fs::canonicalize(csv_file)?;
+        let path = path.to_string_lossy();
 
         let sql = format!(
             "LOAD DATA LOCAL INFILE '{}' \
-             INTO TABLE {} \
-             FIELDS TERMINATED BY ',' \
-             OPTIONALLY ENCLOSED BY '\"' \
-             LINES TERMINATED BY '\\n' \
-             IGNORE 1 ROWS",
-            csv_file,
+            INTO TABLE {} \
+            FIELDS TERMINATED BY ',' \
+            OPTIONALLY ENCLOSED BY '\"' \
+            LINES TERMINATED BY '\\n' \
+            IGNORE 1 ROWS",
+            path,
             Self::quote(table)
         );
 
-        self.conn.query_drop(&sql)
+        self.conn
+            .query_drop(sql)
             .map_err(|e| anyhow!("LOAD DATA error: {}", e))?;
 
-        Ok(count)
+        let inserted = self.conn.affected_rows() as usize;
+
+        Ok(inserted)
     }
 }

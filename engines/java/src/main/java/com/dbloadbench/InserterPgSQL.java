@@ -45,8 +45,6 @@ public class InserterPgSQL implements Inserter {
         return "?";
     }
 
-    // ─── defaultInsert ────────────────────────────────────────────────────────
-
     @Override
     public int defaultInsert(String csvFile, String tableName) throws Exception {
         CSVReader data = new CSVReader(csvFile);
@@ -74,8 +72,6 @@ public class InserterPgSQL implements Inserter {
 
         return data.rows.size();
     }
-
-    // ─── bulkInsert ───────────────────────────────────────────────────────────
 
     @Override
     public int bulkInsert(String csvFile, String tableName, int batchSize) throws Exception {
@@ -119,8 +115,6 @@ public class InserterPgSQL implements Inserter {
         return total;
     }
 
-    // ─── fileInsert — COPY FROM STDIN ─────────────────────────────────────────
-
     @Override
     public int fileInsert(String csvFile, String tableName) throws Exception {
         CSVReader data = new CSVReader(csvFile);
@@ -158,8 +152,6 @@ public class InserterPgSQL implements Inserter {
 
         return data.rows.size();
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private String buildCols(List<String> headers) {
         StringBuilder sb = new StringBuilder();

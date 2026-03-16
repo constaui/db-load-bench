@@ -4,7 +4,6 @@ pub struct CSVData {
     pub rows:    Vec<Vec<String>>,
 }
 
-// Снимает все слои кавычек — аналог cleanStr в Go
 pub fn clean_identifier(s: &str) -> String {
     let mut result = s.to_string();
     loop {
@@ -23,7 +22,6 @@ pub fn clean_identifier(s: &str) -> String {
     result
 }
 
-// Снимает внешние кавычки
 fn unwrap_outer(line: &str) -> String {
     let s = line.trim();
     if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
@@ -33,12 +31,10 @@ fn unwrap_outer(line: &str) -> String {
     }
 }
 
-// Заменяет "" на "
 fn replace_double_quotes(s: &str) -> String {
     s.replace("\"\"", "\"")
 }
 
-// Стандартный CSV парсер с поддержкой кавычек
 fn parse_csv_line(line: &str) -> Vec<String> {
     let mut fields    = Vec::new();
     let mut current   = String::new();
@@ -73,7 +69,6 @@ fn parse_csv_line(line: &str) -> Vec<String> {
     fields
 }
 
-// Парсит строку в формате Wireshark CSV
 fn parse_wrapped_line(line: &str) -> Vec<String> {
     let unwrapped  = unwrap_outer(line);
     let normalized = replace_double_quotes(&unwrapped);
@@ -98,7 +93,6 @@ pub fn csv_read(path: &str) -> anyhow::Result<CSVData> {
 
     let mut headers = parse_wrapped_line(lines[0]);
 
-    // Убираем BOM
     if let Some(first) = headers.first_mut() {
         *first = first.trim_start_matches('\u{FEFF}').to_string();
     }

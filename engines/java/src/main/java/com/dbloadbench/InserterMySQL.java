@@ -18,7 +18,6 @@ public class InserterMySQL implements Inserter {
 
         conn = DriverManager.getConnection(url, props);
 
-        // Включаем local_infile на сервере
         try (Statement st = conn.createStatement()) {
             st.execute("SET GLOBAL local_infile = 1");
         }
@@ -35,8 +34,6 @@ public class InserterMySQL implements Inserter {
                                 .replace("`", "``");
         return "`" + clean + "`";
     }
-
-    // ─── defaultInsert ────────────────────────────────────────────────────────
 
     @Override
     public int defaultInsert(String csvFile, String tableName) throws Exception {
@@ -65,8 +62,6 @@ public class InserterMySQL implements Inserter {
 
         return data.rows.size();
     }
-
-    // ─── bulkInsert ───────────────────────────────────────────────────────────
 
     @Override
     public int bulkInsert(String csvFile, String tableName, int batchSize) throws Exception {
@@ -110,8 +105,6 @@ public class InserterMySQL implements Inserter {
         return total;
     }
 
-    // ─── fileInsert ───────────────────────────────────────────────────────────
-
     @Override
     public int fileInsert(String csvFile, String tableName) throws Exception {
         CSVReader data = new CSVReader(csvFile);
@@ -141,8 +134,6 @@ public class InserterMySQL implements Inserter {
 
         return data.rows.size();
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private String buildCols(List<String> headers) {
         StringBuilder sb = new StringBuilder();

@@ -16,7 +16,6 @@ public class CSVReader {
             String line = br.readLine();
             if (line == null) throw new IOException("CSV is empty");
 
-            // Убираем BOM
             if (line.startsWith("\uFEFF")) {
                 line = line.substring(1);
             }
@@ -29,7 +28,6 @@ public class CSVReader {
             while ((line = br.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
                 String[] row = parseLine(line);
-                // Очищаем значения от лишних кавычек
                 for (int i = 0; i < row.length; i++) {
                     row[i] = cleanIdentifier(row[i]);
                 }
@@ -38,13 +36,11 @@ public class CSVReader {
         }
     }
 
-    // Парсит строку вида: """No."",""Time"""  или  "1,""0.000000"",""TCP"""
     private String[] parseLine(String line) {
         line = line.trim();
         return parseCSVLine(line);
     }
 
-    // Стандартный CSV парсер с поддержкой кавычек
     private String[] parseCSVLine(String line) {
         List<String> fields = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -54,7 +50,6 @@ public class CSVReader {
             char c = line.charAt(i);
 
             if (c == '"') {
-                // Экранированная кавычка внутри поля
                 if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
                     current.append('"');
                     i++;
@@ -73,7 +68,6 @@ public class CSVReader {
         return fields.toArray(new String[0]);
     }
 
-    // Снимает все слои кавычек — аналог cleanStr в Go
     public static String cleanIdentifier(String s) {
         if (s == null) return "";
         while (true) {

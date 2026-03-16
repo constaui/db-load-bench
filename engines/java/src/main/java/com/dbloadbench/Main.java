@@ -1,7 +1,6 @@
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        // Парсинг аргументов
         String method    = getArg(args, "--method",     "default_insert");
         String csvFile   = getArg(args, "--csv",        null);
         String tableName = getArg(args, "--table",      "Test");

@@ -17,7 +17,7 @@ class LineChartWidget(QWidget):
         self._chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self._chart.legend().setVisible(False)
 
-        self._view = QChartView(self._chart)  # ← сохраняем в self для тултипа
+        self._view = QChartView(self._chart)
         self._view.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         self._legend = ChartLegend()
@@ -67,7 +67,6 @@ class LineChartWidget(QWidget):
             for run in sorted(runs, key=lambda r: r.rows):
                 qt_series.append(run.rows, run.elapsed)
 
-            # Передаём имя серии через lambda чтобы тултип знал название метода
             qt_series.hovered.connect(
                 lambda point, state, name=qt_series.name(): self._on_hovered(
                     point, state, name
