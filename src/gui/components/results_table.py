@@ -19,6 +19,7 @@ from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtCore import Qt
 
 from ..utils.chart_data import ChartStore, stats_for
+from ..utils.metric_source import SOURCES, MetricSource, get_source
 
 METHODS = ["default_insert", "bulk_insert", "file_insert"]
 METHOD_LABELS = {
@@ -27,18 +28,19 @@ METHOD_LABELS = {
     "file_insert": "file",
 }
 
-METRIC_LABELS = {
-    "mean": "Среднее (± std)",
+STAT_LABELS = {
+    "mean_std": "Среднее ± std",
+    "mean": "Среднее",
     "median": "Медиана",
     "min": "Минимум",
     "max": "Максимум",
     "std": "Ст. отклонение",
 }
-METRIC_KEYS = list(METRIC_LABELS.keys())
+STAT_KEYS = list(STAT_LABELS.keys())
 
 COLOR_EMPTY = QColor("#f5f5f5")
-COLOR_MIN = QColor("#c8e6c9")
-COLOR_MAX = QColor("#1b5e20")
+COLOR_GOOD = QColor("#1b5e20")
+COLOR_NEUTRAL = QColor("#c8e6c9")
 COLOR_SPEEDUP = QColor("#e3f2fd")
 COLOR_HEADER = QColor("#37474f")
 COLOR_SUBHDR = QColor("#546e7a")
@@ -72,48 +74,69 @@ def _data_item(text: str, bg: QColor = COLOR_EMPTY) -> QTableWidgetItem:
     return item
 
 
-def _collect_stats(store: ChartStore) -> dict[tuple[str, str, str], dict[str, float]]:
-    """RPS-статистика по ключу (engine, db_type, method)."""
+def _collect_stats(
+    store: ChartStore, source: MetricSource
+) -> dict[tuple[str, str, str], dict[str, float]]:
+    """Статистика по выбранному источнику для каждой связки (engine, db, method)."""
     buckets: dict[tuple[str, str, str], list[float]] = defaultdict(list)
     for run in store:
-        buckets[(run.engine, run.db_type, run.method)].append(run.rps)
+        v = source.extract(run)
+        if v is None:
+            continue
+        buckets[(run.engine, run.db_type, run.method)].append(v)
     return {k: stats_for(v) for k, v in buckets.items()}
 
 
-def _format_cell(stats: dict[str, float], metric: str) -> str:
-    value = stats.get(metric, 0.0)
-    if metric == "mean":
-        std = stats.get("std", 0.0)
-        return f"{value:,.0f} ± {std:,.0f}"
-    return f"{value:,.0f}"
+def _format_cell(stats: dict[str, float], stat_key: str, source: MetricSource) -> str:
+    if stat_key == "mean_std":
+        return f"{source.format(stats['mean'])} ± {source.format(stats['std'])}"
+    if stat_key == "mean":
+        return source.format(stats["mean"])
+    return source.format(stats.get(stat_key, 0.0))
+
+
+def _stat_value(stats: dict[str, float], stat_key: str) -> float:
+    """Скалярное значение, по которому строится тепловая шкала и ускорение."""
+    if stat_key in ("mean_std", "mean"):
+        return stats["mean"]
+    return stats.get(stat_key, 0.0)
 
 
 class ResultsTableWidget(QWidget):
     """
-    Сводная таблица статистик RPS по осям:
-        строки  — языки программирования (с подстрокой ускорения)
-        столбцы — (СУБД × метод вставки)
+    Сводная таблица по выбранному источнику метрик (RPS / CPU / RSS / I/O / ...).
 
-    Метрика переключается выпадающим списком: mean / median / min / max / std.
-    Ускорение считается относительно default_insert той же связки (engine, db).
+    Управление:
+      - Источник: что мерить (RPS, CPU% avg, RSS peak, ...).
+      - Статистика: как агрегировать повторы (Среднее ± std, Среднее, Медиана, ...).
+
+    Ячейка содержит выбранную статистику. Подстрока «×default» показывает
+    отношение к default_insert той же связки (engine, db). Цвет тепловой
+    шкалы инвертируется для метрик «меньше = лучше».
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self._store: ChartStore = []
-        self._metric: str = "mean"
+        self._source_key: str = SOURCES[0].key
+        self._stat: str = "mean_std"
 
-        title = QLabel("Сводная таблица RPS")
+        title = QLabel("Сводная таблица результатов")
         title_font = QFont()
         title_font.setBold(True)
         title_font.setPointSize(11)
         title.setFont(title_font)
 
-        self._metric_combo = QComboBox()
-        for key in METRIC_KEYS:
-            self._metric_combo.addItem(METRIC_LABELS[key], key)
-        self._metric_combo.currentIndexChanged.connect(self._on_metric_changed)
+        self._source_combo = QComboBox()
+        for s in SOURCES:
+            self._source_combo.addItem(s.label, s.key)
+        self._source_combo.currentIndexChanged.connect(self._on_source_changed)
+
+        self._stat_combo = QComboBox()
+        for key in STAT_KEYS:
+            self._stat_combo.addItem(STAT_LABELS[key], key)
+        self._stat_combo.currentIndexChanged.connect(self._on_stat_changed)
 
         self._export_btn = QPushButton("Экспорт в CSV")
         self._export_btn.clicked.connect(self._export_csv)
@@ -121,8 +144,10 @@ class ResultsTableWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.addWidget(title)
         top_bar.addStretch(1)
-        top_bar.addWidget(QLabel("Метрика:"))
-        top_bar.addWidget(self._metric_combo)
+        top_bar.addWidget(QLabel("Источник:"))
+        top_bar.addWidget(self._source_combo)
+        top_bar.addWidget(QLabel("Статистика:"))
+        top_bar.addWidget(self._stat_combo)
         top_bar.addWidget(self._export_btn)
 
         self._table = QTableWidget()
@@ -148,10 +173,16 @@ class ResultsTableWidget(QWidget):
         self._table.setRowCount(0)
         self._table.setColumnCount(0)
 
-    def _on_metric_changed(self, _index: int) -> None:
-        data = self._metric_combo.currentData()
-        if data:
-            self._metric = data
+    def _on_source_changed(self, _index: int) -> None:
+        key = self._source_combo.currentData()
+        if key:
+            self._source_key = key
+            self._rebuild()
+
+    def _on_stat_changed(self, _index: int) -> None:
+        key = self._stat_combo.currentData()
+        if key:
+            self._stat = key
             self._rebuild()
 
     def _rebuild(self) -> None:
@@ -159,16 +190,18 @@ class ResultsTableWidget(QWidget):
             self.clear()
             return
 
-        stats_map = _collect_stats(self._store)
+        source = get_source(self._source_key)
+        stats_map = _collect_stats(self._store, source)
         engines = sorted({r.engine for r in self._store})
         db_types = sorted({r.db_type for r in self._store})
         methods = [m for m in METHODS if any(r.method == m for r in self._store)]
 
         values = [
-            s[self._metric]
+            _stat_value(s, self._stat)
             for s in stats_map.values()
-            if s.get("n", 0) > 0 and s[self._metric] > 0
+            if s.get("n", 0) > 0
         ]
+        values = [v for v in values if v > 0]
         v_min = min(values) if values else 0.0
         v_max = max(values) if values else 1.0
 
@@ -205,32 +238,39 @@ class ResultsTableWidget(QWidget):
 
             for di, db in enumerate(db_types):
                 base_stats = stats_map.get((engine, db, "default_insert"))
-                base_val = base_stats[self._metric] if base_stats else None
+                base_val = _stat_value(base_stats, self._stat) if base_stats else None
 
                 for mi, method in enumerate(methods):
                     col = 1 + di * len(methods) + mi
                     stats = stats_map.get((engine, db, method))
 
                     if stats and stats["n"] > 0:
-                        val = stats[self._metric]
-                        text = _format_cell(stats, self._metric)
-                        t = (val - v_min) / (v_max - v_min + 1e-9) if val > 0 else 0.0
-                        bg = _lerp_color(COLOR_MIN, COLOR_MAX, t)
+                        val = _stat_value(stats, self._stat)
+                        text = _format_cell(stats, self._stat, source)
+                        if v_max > v_min and val > 0:
+                            t = (val - v_min) / (v_max - v_min + 1e-9)
+                            if source.lower_is_better:
+                                t = 1.0 - t
+                        else:
+                            t = 0.5
+                        bg = _lerp_color(COLOR_NEUTRAL, COLOR_GOOD, t)
                         item = _data_item(text, bg)
                         item.setForeground(
                             QColor("white") if t > 0.5 else QColor("#212121")
                         )
                         item.setToolTip(
                             f"<b>{engine} / {db} / {method}</b><br>"
+                            f"источник: {source.label}<br>"
                             f"n = {int(stats['n'])}<br>"
-                            f"mean = {stats['mean']:,.1f}<br>"
-                            f"median = {stats['median']:,.1f}<br>"
-                            f"std = {stats['std']:,.1f}<br>"
-                            f"min = {stats['min']:,.1f}<br>"
-                            f"max = {stats['max']:,.1f}"
+                            f"mean = {source.format(stats['mean'])}<br>"
+                            f"median = {source.format(stats['median'])}<br>"
+                            f"std = {source.format(stats['std'])}<br>"
+                            f"min = {source.format(stats['min'])}<br>"
+                            f"max = {source.format(stats['max'])}"
                         )
                     else:
                         item = _data_item("—")
+                        item.setToolTip("нет данных для выбранного источника")
                     self._table.setItem(data_row, col, item)
 
                     if method == "default_insert":
@@ -238,15 +278,19 @@ class ResultsTableWidget(QWidget):
                     elif (
                         stats
                         and stats["n"] > 0
-                        and base_val is not None
+                        and base_val
                         and base_val > 0
                     ):
-                        ratio = stats[self._metric] / base_val
+                        ratio = _stat_value(stats, self._stat) / base_val
                         sp_item = _data_item(f"×{ratio:.2f}", COLOR_SPEEDUP)
-                        if ratio >= 1.0:
-                            sp_item.setForeground(QColor("#1b5e20"))
+                        # Для метрик "меньше = лучше" знак выгоды инвертируется.
+                        if source.lower_is_better:
+                            better = ratio < 1.0
                         else:
-                            sp_item.setForeground(QColor("#b71c1c"))
+                            better = ratio > 1.0
+                        sp_item.setForeground(
+                            QColor("#1b5e20") if better else QColor("#b71c1c")
+                        )
                         if ratio >= 2.0 or ratio <= 0.5:
                             font = QFont()
                             font.setBold(True)
@@ -269,7 +313,8 @@ class ResultsTableWidget(QWidget):
         if not path:
             return
 
-        stats_map = _collect_stats(self._store)
+        source = get_source(self._source_key)
+        stats_map = _collect_stats(self._store, source)
         engines = sorted({r.engine for r in self._store})
         db_types = sorted({r.db_type for r in self._store})
         methods = [m for m in METHODS if any(r.method == m for r in self._store)]
@@ -277,7 +322,9 @@ class ResultsTableWidget(QWidget):
         buf = io.StringIO()
         writer = csv_module.writer(buf)
 
-        writer.writerow([f"Метрика: {METRIC_LABELS[self._metric]} (RPS)"])
+        writer.writerow(
+            [f"Источник: {source.label}; статистика: {STAT_LABELS[self._stat]}"]
+        )
         header = ["Язык"]
         for db in db_types:
             for method in methods:
@@ -289,24 +336,25 @@ class ResultsTableWidget(QWidget):
             sp_row: list[str] = [f"{engine} (×default)"]
             for db in db_types:
                 base = stats_map.get((engine, db, "default_insert"))
-                base_val = base[self._metric] if base else None
+                base_val = _stat_value(base, self._stat) if base else None
                 for method in methods:
                     stats = stats_map.get((engine, db, method))
                     if stats and stats["n"] > 0:
-                        val_row.append(_format_cell(stats, self._metric))
+                        val_row.append(_format_cell(stats, self._stat, source))
                     else:
                         val_row.append("")
                     if method == "default_insert":
                         sp_row.append("base")
                     elif stats and stats["n"] > 0 and base_val:
-                        sp_row.append(f"×{stats[self._metric] / base_val:.2f}")
+                        ratio = _stat_value(stats, self._stat) / base_val
+                        sp_row.append(f"×{ratio:.2f}")
                     else:
                         sp_row.append("")
             writer.writerow(val_row)
             writer.writerow(sp_row)
 
         writer.writerow([])
-        writer.writerow(["Полная статистика (RPS) — по всем срезам"])
+        writer.writerow([f"Полная статистика — {source.label}"])
         writer.writerow(
             ["engine", "db_type", "method", "n", "mean", "median", "std", "min", "max"]
         )
@@ -322,11 +370,11 @@ class ResultsTableWidget(QWidget):
                             db,
                             method,
                             int(stats["n"]),
-                            f"{stats['mean']:.1f}",
-                            f"{stats['median']:.1f}",
-                            f"{stats['std']:.1f}",
-                            f"{stats['min']:.1f}",
-                            f"{stats['max']:.1f}",
+                            source.format(stats["mean"]),
+                            source.format(stats["median"]),
+                            source.format(stats["std"]),
+                            source.format(stats["min"]),
+                            source.format(stats["max"]),
                         ]
                     )
 

@@ -17,7 +17,7 @@ from ..components.results_table import ResultsTableWidget
 from ..components.box_plot import BoxPlotWidget
 from ..components.multi_filter_bar import MultiFilterBar, FilterSelection
 
-VIEWS = ["Bar Chart", "Line Chart", "Box plot", "Таблица"]
+VIEWS = ["Bar Chart", "Line Chart", "Box-plot", "Таблица"]
 
 
 class ResultsWidget(QGroupBox):

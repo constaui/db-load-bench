@@ -35,6 +35,8 @@ class ChartLegend(QScrollArea):
             for marker in chart.legend().markers(series):
                 color = marker.brush().color()
                 label = marker.label()
+                if not label:
+                    continue
                 self._layout.addWidget(_LegendItem(label, color))
 
         self._layout.addStretch()

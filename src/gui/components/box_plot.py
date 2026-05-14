@@ -15,6 +15,7 @@ from PyQt6.QtGui import QPainter, QCursor
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QToolTip, QVBoxLayout, QWidget
 
 from ..utils.chart_data import ChartStore, stats_for
+from ..utils.metric_source import SOURCES, get_source
 
 METHOD_LABELS = {
     "default_insert": "default",
@@ -54,10 +55,10 @@ def _sort_key(engine: str, db: str, method: str, mode: str) -> tuple:
 
 class BoxPlotWidget(QWidget):
     """
-    Box-plot по RPS. Каждая «коробка» — это группа (engine, db, method),
-    показывающая распределение RPS по всем повторам в этой группе.
+    Box-plot выбранной метрики. Каждая «коробка» — это группа
+    (engine, db, method), показывающая распределение метрики по всем повторам.
 
-    Группировка по оси X переключается выпадающим списком.
+    Источник метрики (RPS, CPU%, RSS, ...) и группировка по оси X — независимы.
     """
 
     def __init__(self, parent=None):
@@ -65,14 +66,20 @@ class BoxPlotWidget(QWidget):
 
         self._store: ChartStore = []
         self._group_mode: str = "engine"
+        self._source_key: str = SOURCES[0].key
 
         self._chart = QChart()
-        self._chart.setTitle("Распределение RPS по группам (box-plot)")
+        self._chart.setTitle("Распределение метрики по группам (box-plot)")
         self._chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self._chart.legend().setVisible(False)
 
         self._view = QChartView(self._chart)
         self._view.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        self._source_combo = QComboBox()
+        for s in SOURCES:
+            self._source_combo.addItem(s.label, s.key)
+        self._source_combo.currentIndexChanged.connect(self._on_source_changed)
 
         self._group_combo = QComboBox()
         for key, label in GROUP_BY_LABELS.items():
@@ -80,6 +87,9 @@ class BoxPlotWidget(QWidget):
         self._group_combo.currentIndexChanged.connect(self._on_group_changed)
 
         top = QHBoxLayout()
+        top.addWidget(QLabel("Источник:"))
+        top.addWidget(self._source_combo)
+        top.addSpacing(12)
         top.addWidget(QLabel("Группировка:"))
         top.addWidget(self._group_combo)
         top.addStretch(1)
@@ -106,6 +116,12 @@ class BoxPlotWidget(QWidget):
             self._group_mode = data
             self._rebuild()
 
+    def _on_source_changed(self, _index: int) -> None:
+        data = self._source_combo.currentData()
+        if data:
+            self._source_key = data
+            self._rebuild()
+
     def _rebuild(self) -> None:
         self._chart.removeAllSeries()
         for ax in self._chart.axes():
@@ -114,9 +130,23 @@ class BoxPlotWidget(QWidget):
         if not self._store:
             return
 
+        source = get_source(self._source_key)
         buckets: dict[tuple[str, str, str], list[float]] = defaultdict(list)
         for run in self._store:
-            buckets[(run.engine, run.db_type, run.method)].append(run.rps)
+            v = source.extract(run)
+            if v is None:
+                continue
+            buckets[(run.engine, run.db_type, run.method)].append(v)
+
+        if not buckets:
+            self._chart.setTitle(
+                f"Нет данных для «{source.label}» (метрика не замерена)"
+            )
+            return
+
+        self._chart.setTitle(
+            f"Распределение «{source.label}» по группам (box-plot)"
+        )
 
         keys = sorted(buckets.keys(), key=lambda k: _sort_key(*k, self._group_mode))
 
@@ -146,13 +176,15 @@ class BoxPlotWidget(QWidget):
 
             tooltips[label] = (
                 f"<b>{engine} / {db} / {method}</b><br>"
+                f"источник: {source.label}<br>"
                 f"n = {int(stats['n'])}<br>"
-                f"min = {stats['min']:,.1f}<br>"
-                f"Q1 = {stats['q1']:,.1f}<br>"
-                f"median = {stats['median']:,.1f}<br>"
-                f"Q3 = {stats['q3']:,.1f}<br>"
-                f"max = {stats['max']:,.1f}<br>"
-                f"mean = {stats['mean']:,.1f} ± {stats['std']:,.1f}"
+                f"min = {source.format(stats['min'])}<br>"
+                f"Q1 = {source.format(stats['q1'])}<br>"
+                f"median = {source.format(stats['median'])}<br>"
+                f"Q3 = {source.format(stats['q3'])}<br>"
+                f"max = {source.format(stats['max'])}<br>"
+                f"mean = {source.format(stats['mean'])} "
+                f"± {source.format(stats['std'])}"
             )
             y_max = max(y_max, stats["max"])
 
@@ -170,8 +202,11 @@ class BoxPlotWidget(QWidget):
         series.attachAxis(axis_x)
 
         axis_y = QValueAxis()
-        axis_y.setTitleText("RPS")
-        axis_y.setLabelFormat("%.0f")
+        title = source.label
+        if source.unit:
+            title = f"{source.label} ({source.unit})"
+        axis_y.setTitleText(title)
+        axis_y.setLabelFormat("%.2f" if any(c.isalpha() for c in source.unit) else "%.0f")
         axis_y.setMin(0)
         axis_y.setMax(y_max * 1.1 if y_max > 0 else 1.0)
         self._chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
