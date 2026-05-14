@@ -2,6 +2,8 @@
 
 Инструмент для тестирования баз данных с графическим интерфейсом, написанным с помощью библиотеки PyQt6, и реализациями на 4 языках-движках (Python, Rust, Go, Java) и для 2 СУБД (MySQL, PostgreSQL). Программма предназначена для оценки производительности операций вставки данных большого объема в базы данных.
 
+При необходимости можно добавить реализации движков на других языках и для других СУБД.
+
 ## Структура проекта
 
 ```
@@ -17,14 +19,14 @@ db-load-bench/
 └── .env.example         # Шаблон .env файла
 ```
 
-## Prerequisites
+## Требования
 
-- Python 3.8+
-- Rust (for Rust engine) - [rustup](https://rustup.rs/)
+- Python 3.8+ - [python.org](https://www.python.org/)
+- Rust (for Rust engine) - [rustup.rs](https://rustup.rs/)
 - Go 1.22+ (for Go engine) - [golang.org](https://golang.org/)
 - Java 17+ & Maven (for Java engine) - [maven.apache.org](https://maven.apache.org/)
-- MySQL
-- PostgreSQL
+- MySQL [dev.mysql.com](https://dev.mysql.com/doc/mysql-getting-started/en/)
+- PostgreSQL [postgresql.org](https://www.postgresql.org/)
 
 ## Установка
 
@@ -34,14 +36,14 @@ db-load-bench/
 cd db-load-bench
 ```
 
-### 2. Натсройка окружения Python
+### 2. Настройка окружения Python
 
 Создайте и активируйте виртуальное окружение:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # macOS/Linux
-# or
+# или
 .venv\Scripts\activate     # Windows
 ```
 
@@ -176,8 +178,8 @@ CSV файл должен иметь первую строку с заголов
 
 ```csv
 id,name,email,age
-1,John Doe,john@example.com,30
-2,Jane Smith,jane@example.com,25
+1,Иван Иванов,ivan@example.com,30
+2,Ольга Иванова,olga@example.com,25
 ```
 
 ## Результат
@@ -185,12 +187,15 @@ id,name,email,age
 Результат запуска теста хранится в следующем формате:
 
 ```json
-{
-  "engine": "Rust",
-  "db_type": "mysql",
-  "method": "bulk_insert",
-  "experiment_config": { "rows": 10000 },
-  "method_config": { "batch_size": 1000 },
-  "metrics": { "elapsed": 2.345678, "rps": 4263.2 }
-}
+[
+  {
+    "engine": "Rust",
+    "db_type": "mysql",
+    "method": "bulk_insert",
+    "experiment_config": { "rows": 10000 },
+    "method_config": { "batch_size": 1000 },
+    "metrics": { "elapsed": 2.345678, "rps": 4263.2 }
+  },
+  ...
+]
 ```

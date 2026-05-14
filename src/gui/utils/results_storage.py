@@ -8,17 +8,7 @@ RESULTS_FILE = Path("results.json")
 
 def save_results(store: ChartStore) -> None:
     """Сохранение результатов в файл"""
-    data = [
-        {
-            "engine": r.engine,
-            "db_type": r.db_type,
-            "method": r.method,
-            "experiment_config": r.experiment_config,
-            "method_config": r.method_config,
-            "metrics": r.metrics,
-        }
-        for r in store
-    ]
+    data = [r.to_dict() for r in store]
     RESULTS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
@@ -37,6 +27,7 @@ def load_results() -> ChartStore:
             experiment_config=r["experiment_config"],
             method_config=r["method_config"],
             metrics=r["metrics"],
+            resource_metrics=r.get("resource_metrics", {}),
         )
         for r in data
     ]

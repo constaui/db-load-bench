@@ -3,21 +3,21 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QComboBox,
-    QLabel,
     QStackedWidget,
     QButtonGroup,
     QMessageBox,
 )
 from PyQt6.QtCore import pyqtSlot
 
-from ..utils.chart_data import ChartStore, MethodRun, add_run
+from ..utils.chart_data import ChartStore, MethodRun, add_run, filter_runs
 from ..utils.results_storage import save_results, load_results, clear_results_file
 from ..components.bar_chart import BarChartWidget
 from ..components.line_chart import LineChartWidget
 from ..components.results_table import ResultsTableWidget
+from ..components.box_plot import BoxPlotWidget
+from ..components.multi_filter_bar import MultiFilterBar, FilterSelection
 
-VIEWS = ["Bar Chart", "Line Chart", "Таблица"]
+VIEWS = ["Bar Chart", "Line Chart", "Box plot", "Таблица"]
 
 
 class ResultsWidget(QGroupBox):
@@ -30,16 +30,17 @@ class ResultsWidget(QGroupBox):
 
         self._bar = BarChartWidget()
         self._line = LineChartWidget()
+        self._box = BoxPlotWidget()
         self._table = ResultsTableWidget()
 
         self._stack = QStackedWidget()
         self._stack.addWidget(self._bar)
         self._stack.addWidget(self._line)
+        self._stack.addWidget(self._box)
         self._stack.addWidget(self._table)
 
-        self._db_selector = QComboBox()
-        self._db_selector.addItem("Все СУБД")
-        self._db_selector.currentTextChanged.connect(self._refresh)
+        self._filter = MultiFilterBar()
+        self._filter.changed.connect(self._on_filter_changed)
 
         self._view_group = QButtonGroup()
         view_btn_layout = QHBoxLayout()
@@ -57,19 +58,18 @@ class ResultsWidget(QGroupBox):
         clear_file_btn.clicked.connect(self._clear_file)
 
         top_layout = QHBoxLayout()
-        top_layout.addWidget(QLabel("СУБД:"))
-        top_layout.addWidget(self._db_selector)
-        top_layout.addStretch()
         top_layout.addLayout(view_btn_layout)
+        top_layout.addStretch()
         top_layout.addWidget(clear_view_btn)
         top_layout.addWidget(clear_file_btn)
 
         layout = QVBoxLayout()
         layout.addLayout(top_layout)
+        layout.addWidget(self._filter)
         layout.addWidget(self._stack)
         self.setLayout(layout)
 
-        self._restore_selector()
+        self._sync_filter_options()
         self._refresh()
 
     @pyqtSlot(dict)
@@ -77,44 +77,49 @@ class ResultsWidget(QGroupBox):
         run = MethodRun.from_dict(result)
         add_run(self._store, run)
         save_results(self._store)
-        self._sync_selector(run.db_type)
+        self._sync_filter_options()
         self._refresh()
 
-    def _restore_selector(self):
-        """Восстанавливает список СУБД из загруженных данных."""
-        for run in self._store:
-            self._sync_selector(run.db_type)
-
-    def _sync_selector(self, db_type: str):
-        items = [
-            self._db_selector.itemText(i) for i in range(self._db_selector.count())
-        ]
-        if db_type not in items:
-            self._db_selector.addItem(db_type)
+    def _sync_filter_options(self) -> None:
+        """Обновляет списки доступных значений в фильтре по текущему стору."""
+        engines = sorted({r.engine for r in self._store})
+        db_types = sorted({r.db_type for r in self._store})
+        methods_order = ["default_insert", "bulk_insert", "file_insert"]
+        present = {r.method for r in self._store}
+        methods = [m for m in methods_order if m in present] + sorted(
+            present - set(methods_order)
+        )
+        self._filter.set_options(engines, db_types, methods)
 
     def _active_store(self) -> ChartStore:
-        selected = self._db_selector.currentText()
-        if selected == "Все СУБД":
-            return self._store
-        return [r for r in self._store if r.db_type == selected]
+        sel: FilterSelection = self._filter.selection()
+        return filter_runs(
+            self._store,
+            engines=sel.engines,
+            db_types=sel.db_types,
+            methods=sel.methods,
+        )
 
     def _switch_view(self, index: int):
         self._stack.setCurrentIndex(index)
         self._refresh()
 
+    def _on_filter_changed(self, _selection: FilterSelection) -> None:
+        self._refresh()
+
     def _refresh(self):
         store = self._active_store()
         index = self._stack.currentIndex()
-        widgets = [self._bar, self._line, self._table]
+        widgets = [self._bar, self._line, self._box, self._table]
         widgets[index].refresh(store)
 
     def _clear_view(self):
         """Очищает только отображение — файл не трогает."""
         self._store.clear()
-        self._db_selector.clear()
-        self._db_selector.addItem("Все СУБД")
+        self._sync_filter_options()
         self._bar.clear()
         self._line.clear()
+        self._box.clear()
         self._table.clear()
 
     def _clear_file(self):

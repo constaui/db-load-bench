@@ -56,6 +56,8 @@ class MethodRun:
 
     metrics: dict[str, float] = field(default_factory=dict)
 
+    resource_metrics: dict[str, float] = field(default_factory=dict)
+
     @property
     def rows(self) -> int:
         return self.experiment_config.get("rows", 0)
@@ -94,6 +96,7 @@ class MethodRun:
             experiment_config=data["experiment_config"],
             method_config=data["method_config"],
             metrics=data["metrics"],
+            resource_metrics=data.get("resource_metrics", {}),
         )
 
     def to_dict(self) -> dict:
@@ -105,4 +108,5 @@ class MethodRun:
             "experiment_config": self.experiment_config,
             "method_config": self.method_config,
             "metrics": self.metrics,
+            "resource_metrics": self.resource_metrics,
         }

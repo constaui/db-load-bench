@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from orchestrator.protocol import MethodRun
+from orchestrator.resource_monitor import ResourceMonitor
 
 
 ENGINES = {
@@ -16,31 +17,58 @@ ENGINES = {
 
 class ProcessManager:
 
-    def __init__(self, engine: str, conn_params: dict):
+    def __init__(
+        self,
+        engine: str,
+        conn_params: dict,
+        sampling_interval_s: float = 0.05,
+    ):
         if engine not in ENGINES:
             raise ValueError(f"Unknown engine: {engine}")
         self.engine = engine
         self.conn_params = conn_params
+        self.sampling_interval_s = sampling_interval_s
 
     def run(
         self, method: str, csv_file: str, table_name: str, batch_size: int = 1000
     ) -> MethodRun:
         cmd = self._build_cmd(method, csv_file, table_name, batch_size)
 
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        monitor = ResourceMonitor(
+            pid=proc.pid, interval_s=self.sampling_interval_s
+        ).start()
+
+        try:
+            stdout, stderr = proc.communicate(timeout=600)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            monitor.stop()
+            raise RuntimeError(f"[{self.engine}] timeout after 600s")
+        finally:
+            resource_metrics = monitor.stop()
 
         if proc.returncode != 0:
             raise RuntimeError(
-                f"[{self.engine}] process failed:\n{proc.stderr.strip()}"
+                f"[{self.engine}] process failed:\n{stderr.strip()}"
             )
 
         try:
-            result = MethodRun.from_dict(json.loads(proc.stdout))
-            return result
+            result = MethodRun.from_dict(json.loads(stdout))
         except (json.JSONDecodeError, KeyError) as e:
             raise RuntimeError(
-                f"[{self.engine}] invalid output: {proc.stdout!r}"
+                f"[{self.engine}] invalid output: {stdout!r}"
             ) from e
+
+        # Метрики окружения замеряются оркестратором, движок про них не знает.
+        result.resource_metrics = resource_metrics
+        return result
 
     def _build_cmd(
         self, method: str, csv_file: str, table_name: str, batch_size: int
