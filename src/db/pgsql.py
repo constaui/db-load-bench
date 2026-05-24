@@ -9,7 +9,15 @@ class PgSQLDatabase(BaseDatabase):
 
     def connect(self):
         try:
-            self.connection = psycopg2.connect(**self.config)
+            # На Windows с русской локалью libpq возвращает сообщения об ошибках
+            # в cp1251, а psycopg2 декодирует их как UTF-8 → UnicodeDecodeError
+            # ("0xc2 invalid continuation byte"). Принудительно требуем у сервера
+            # ASCII-сообщения и UTF-8 как клиентскую кодировку данных.
+            cfg = dict(self.config)
+            existing = (cfg.pop("options", "") or "").strip()
+            cfg["options"] = (existing + " -c lc_messages=C").strip()
+            cfg.setdefault("client_encoding", "UTF8")
+            self.connection = psycopg2.connect(**cfg)
         except Error as e:
             raise DatabaseConnectionError(f"PostgreSQL connection failed: {e}") from e
 

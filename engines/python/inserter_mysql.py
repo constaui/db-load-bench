@@ -3,6 +3,8 @@ import mysql.connector
 
 
 def _connect(conn_params: dict):
+    # use_pure=True + charset=utf8mb4: на Windows с русской локалью
+    # mysql.connector без этих опций может ронять процесс на декоде ошибок.
     conn = mysql.connector.connect(
         host=conn_params["host"],
         port=conn_params["port"],
@@ -10,6 +12,8 @@ def _connect(conn_params: dict):
         password=conn_params["password"],
         database=conn_params["database"],
         allow_local_infile=True,
+        charset="utf8mb4",
+        use_pure=True,
     )
     return conn
 

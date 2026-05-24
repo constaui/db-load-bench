@@ -10,6 +10,10 @@ def _connect(conn_params: dict):
         user=conn_params["user"],
         password=conn_params["password"],
         dbname=conn_params["database"],
+        # ASCII-сообщения от сервера и UTF-8 для данных:
+        # защита от UnicodeDecodeError на Windows с русской локалью.
+        options="-c lc_messages=C",
+        client_encoding="UTF8",
     )
 
 

@@ -9,13 +9,32 @@ class MySQLDatabase(BaseDatabase):
 
     def connect(self):
         try:
+            # На Windows с русской локалью mysql.connector может «жёстко»
+            # упасть на декодировании серверных сообщений (cp1251) при
+            # неудаче. Защитные меры:
+            #   - use_pure=True — чисто-Python коннектор, без C-расширения,
+            #     ошибки нормально становятся исключениями вместо abort;
+            #   - charset=utf8mb4 — фиксированная кодировка соединения.
+            cfg = dict(self.config)
+            cfg.setdefault("charset", "utf8mb4")
+            cfg.setdefault("use_pure", True)
             self.connection = mysql.connector.connect(
-                **self.config,
+                **cfg,
                 allow_local_infile=True,
             )
-            cursor = self.connection.cursor()
-            cursor.execute("SET GLOBAL local_infile = 1")
-            cursor.close()
+            # `SET GLOBAL local_infile = 1` требует привилегию SUPER /
+            # SYSTEM_VARIABLES_ADMIN. Если её нет — сервер отвечает ошибкой,
+            # и от неё не должно «закрываться приложение». Поэтому в try.
+            # Если local_infile уже включён в my.cnf — file_insert всё равно
+            # будет работать.
+            try:
+                cursor = self.connection.cursor()
+                cursor.execute("SET GLOBAL local_infile = 1")
+                cursor.close()
+            except Error:
+                # Молча игнорируем: file_insert либо уже разрешён сервером,
+                # либо упадёт позже с понятной ошибкой.
+                pass
         except Error as e:
             raise DatabaseConnectionError(f"MySQL connection failed: {e}") from e
 
