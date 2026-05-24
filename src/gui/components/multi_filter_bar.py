@@ -57,13 +57,15 @@ class _CheckGroup(QGroupBox):
         prev_selected = self.selected()
         prev_known = self._known
 
-        while self._row.count() > 2:
-            item = self._row.takeAt(2)
+        # Сносим всё, что есть после _all (включая stretch), затем добавляем
+        # новые чекбоксы и в конце возвращаем stretch. Старая версия
+        # останавливала цикл при count==2, оставляя «лишний» первый чекбокс.
+        while self._row.count() > 1:
+            item = self._row.takeAt(1)
             if item.widget():
                 item.widget().deleteLater()
         self._boxes.clear()
 
-        insert_at = self._row.count() - 1
         for v in values:
             label = self._label_map.get(v, v)
             cb = QCheckBox(label)
@@ -74,8 +76,9 @@ class _CheckGroup(QGroupBox):
             cb.setChecked(checked)
             cb.toggled.connect(self._on_child_toggled)
             self._boxes[v] = cb
-            self._row.insertWidget(insert_at, cb)
-            insert_at += 1
+            self._row.addWidget(cb)
+
+        self._row.addStretch(1)
 
         self._known = set(values)
         self._refresh_all_state()

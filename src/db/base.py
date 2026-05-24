@@ -18,3 +18,14 @@ class BaseDatabase(ABC):
     @abstractmethod
     def prepare(self, cursor, csv_file, table_name):
         pass
+
+    def get_version(self) -> str:
+        """Версия сервера БД (например "8.0.32" / "16.1"). Пусто при ошибке."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT VERSION()")
+            row = cursor.fetchone()
+            cursor.close()
+            return str(row[0]) if row else ""
+        except Exception:
+            return ""

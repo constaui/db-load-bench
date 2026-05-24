@@ -4,7 +4,6 @@ use anyhow::{Result, anyhow};
 use mysql::prelude::*;
 use mysql::*;
 use std::fs;
-use std::io::Write;
 
 pub struct MySQLInserter {
     conn: Conn,
@@ -20,9 +19,11 @@ impl MySQLInserter {
         let builder = OptsBuilder::from_opts(Opts::from_url(&url)?)
             .local_infile_handler(Some(LocalInfileHandler::new(
                 |file_name: &[u8], infile: &mut mysql::LocalInfile<'_>| {
+                    // Стримим файл, а не читаем целиком в память: на больших
+                    // CSV (10⁵–10⁶ строк) промежуточный Vec<u8> избыточен.
                     let path = String::from_utf8_lossy(file_name).to_string();
-                    let data = fs::read(&path)?;
-                    infile.write_all(&data)?;
+                    let mut file = std::fs::File::open(&path)?;
+                    std::io::copy(&mut file, infile)?;
                     Ok(())
                 },
             )));
@@ -96,7 +97,15 @@ impl Inserter for MySQLInserter {
 
     fn file_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
         let path = std::fs::canonicalize(csv_file)?;
-        let path = path.to_string_lossy();
+        let path_str = path.to_string_lossy();
+
+        // Считаем строки по самому файлу (минус заголовок). Это надёжнее,
+        // чем conn.affected_rows() после LOAD DATA INFILE: в crate mysql v24
+        // этот счётчик на больших файлах иногда возвращает не «вставлено
+        // строк», а статус последнего пакета (нередко 1). PostgreSQL-движок
+        // делает ровно так же.
+        let content = fs::read_to_string(&path)?;
+        let row_count = content.lines().count().saturating_sub(1);
 
         let sql = format!(
             "LOAD DATA LOCAL INFILE '{}' \
@@ -105,7 +114,7 @@ impl Inserter for MySQLInserter {
             OPTIONALLY ENCLOSED BY '\"' \
             LINES TERMINATED BY '\\n' \
             IGNORE 1 ROWS",
-            path,
+            path_str,
             Self::quote(table)
         );
 
@@ -113,8 +122,6 @@ impl Inserter for MySQLInserter {
             .query_drop(sql)
             .map_err(|e| anyhow!("LOAD DATA error: {}", e))?;
 
-        let inserted = self.conn.affected_rows() as usize;
-
-        Ok(inserted)
+        Ok(row_count)
     }
 }

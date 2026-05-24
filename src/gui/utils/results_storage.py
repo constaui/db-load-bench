@@ -19,18 +19,7 @@ def load_results() -> ChartStore:
 
     data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
 
-    return [
-        MethodRun(
-            engine=r["engine"],
-            db_type=r["db_type"],
-            method=r["method"],
-            experiment_config=r["experiment_config"],
-            method_config=r["method_config"],
-            metrics=r["metrics"],
-            resource_metrics=r.get("resource_metrics", {}),
-        )
-        for r in data
-    ]
+    return [MethodRun.from_dict(r) for r in data]
 
 
 def clear_results_file() -> None:

@@ -58,6 +58,13 @@ class MethodRun:
 
     resource_metrics: dict[str, float] = field(default_factory=dict)
 
+    # Идентификация сессии и контекст окружения. Заполняются оркестратором
+    # на стороне Python; движки про эти поля не знают.
+    session_id: str = ""
+    label: str = ""
+    timestamp: str = ""  # ISO-8601, момент старта данного прогона
+    environment: dict = field(default_factory=dict)
+
     @property
     def rows(self) -> int:
         return self.experiment_config.get("rows", 0)
@@ -97,6 +104,10 @@ class MethodRun:
             method_config=data["method_config"],
             metrics=data["metrics"],
             resource_metrics=data.get("resource_metrics", {}),
+            session_id=data.get("session_id", ""),
+            label=data.get("label", ""),
+            timestamp=data.get("timestamp", ""),
+            environment=data.get("environment", {}),
         )
 
     def to_dict(self) -> dict:
@@ -109,4 +120,8 @@ class MethodRun:
             "method_config": self.method_config,
             "metrics": self.metrics,
             "resource_metrics": self.resource_metrics,
+            "session_id": self.session_id,
+            "label": self.label,
+            "timestamp": self.timestamp,
+            "environment": self.environment,
         }

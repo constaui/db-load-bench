@@ -30,27 +30,49 @@ GROUP_BY_LABELS = {
 }
 
 
-def _short_method(name: str) -> str:
-    return METHOD_LABELS.get(name, name)
+def _short_method(name: str, batch: int | None, rows: int, show_rows: bool) -> str:
+    label = METHOD_LABELS.get(name, name)
+    if name == "bulk_insert" and batch is not None:
+        label = f"{label}(b={batch})"
+    if show_rows:
+        label = f"{label} N={rows}"
+    return label
 
 
-def _label(engine: str, db: str, method: str, mode: str) -> str:
+def _label(
+    engine: str,
+    db: str,
+    method: str,
+    batch: int | None,
+    rows: int,
+    mode: str,
+    show_rows: bool,
+) -> str:
     """Подпись для категории в зависимости от выбранной группировки оси X."""
+    short = _short_method(method, batch, rows, show_rows)
     if mode == "engine":
-        return f"{engine}\n{db}/{_short_method(method)}"
+        return f"{engine}\n{db}/{short}"
     if mode == "db_type":
-        return f"{db}\n{engine}/{_short_method(method)}"
-    return f"{_short_method(method)}\n{engine}/{db}"
+        return f"{db}\n{engine}/{short}"
+    return f"{short}\n{engine}/{db}"
 
 
-def _sort_key(engine: str, db: str, method: str, mode: str) -> tuple:
+def _sort_key(
+    engine: str,
+    db: str,
+    method: str,
+    batch: int | None,
+    rows: int,
+    mode: str,
+) -> tuple:
     method_order = {"default_insert": 0, "bulk_insert": 1, "file_insert": 2}
     m = method_order.get(method, 99)
+    b = batch if batch is not None else 0
     if mode == "engine":
-        return (engine, db, m)
+        return (engine, db, m, b, rows)
     if mode == "db_type":
-        return (db, engine, m)
-    return (m, engine, db)
+        return (db, engine, m, b, rows)
+    return (m, b, rows, engine, db)
 
 
 class BoxPlotWidget(QWidget):
@@ -131,18 +153,28 @@ class BoxPlotWidget(QWidget):
             return
 
         source = get_source(self._source_key)
-        buckets: dict[tuple[str, str, str], list[float]] = defaultdict(list)
+        # Ключ включает batch_size И rows, чтобы прогоны с разным batch или
+        # разным объёмом не сливались в одну коробку. Иначе сравнение между
+        # коробками было бы методологически некорректным.
+        buckets: dict[
+            tuple[str, str, str, int | None, int], list[float]
+        ] = defaultdict(list)
         for run in self._store:
             v = source.extract(run)
             if v is None:
                 continue
-            buckets[(run.engine, run.db_type, run.method)].append(v)
+            b = run.batch_size if run.method == "bulk_insert" else None
+            buckets[(run.engine, run.db_type, run.method, b, run.rows)].append(v)
 
         if not buckets:
             self._chart.setTitle(
                 f"Нет данных для «{source.label}» (метрика не замерена)"
             )
             return
+
+        # rows подписывать только если их в данных более одного значения
+        unique_rows = {key[4] for key in buckets.keys()}
+        show_rows = len(unique_rows) > 1
 
         self._chart.setTitle(
             f"Распределение «{source.label}» по группам (box-plot)"
@@ -155,13 +187,15 @@ class BoxPlotWidget(QWidget):
         y_max = 0.0
         tooltips: dict[str, str] = {}
 
-        for engine, db, method in keys:
-            values = buckets[(engine, db, method)]
+        for engine, db, method, batch, rows_v in keys:
+            values = buckets[(engine, db, method, batch, rows_v)]
             stats = stats_for(values)
             if stats["n"] == 0:
                 continue
 
-            label = _label(engine, db, method, self._group_mode)
+            label = _label(
+                engine, db, method, batch, rows_v, self._group_mode, show_rows
+            )
             categories.append(label)
 
             box = QBoxSet(
@@ -174,8 +208,14 @@ class BoxPlotWidget(QWidget):
             )
             series.append(box)
 
+            tag = (
+                f"{method} (batch={batch})"
+                if method == "bulk_insert" and batch is not None
+                else method
+            )
             tooltips[label] = (
-                f"<b>{engine} / {db} / {method}</b><br>"
+                f"<b>{engine} / {db} / {tag}</b><br>"
+                f"rows = {rows_v:,}<br>"
                 f"источник: {source.label}<br>"
                 f"n = {int(stats['n'])}<br>"
                 f"min = {source.format(stats['min'])}<br>"

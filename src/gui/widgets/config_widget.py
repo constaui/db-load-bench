@@ -1,38 +1,74 @@
-from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QSpinBox,
+    QVBoxLayout,
+)
 
 from ..components import (
-    FileInput,
     DatabaseParametersForm,
     DatabaseTypeSelector,
-    InsertingMethodSelector,
     EngineSelector,
+    FileInput,
+    InsertingMethodSelector,
 )
 
 
 class ConfigWidget(QGroupBox):
-    """Блок с настройками параметров БД"""
+    """
+    Настройки серии экспериментов. Разделены на два логических блока:
+    «Что тестируем» и «Куда подключаемся».
+    """
 
     log_message = pyqtSignal(str, str)
 
     def __init__(self) -> None:
         super().__init__("Настройки")
 
+        # ── Тест ────────────────────────────────────────────────────────────
         self.engine_selector = EngineSelector()
-        self.file_input = FileInput(label="Файл")
-        self.db_params_form = DatabaseParametersForm()
-        self.db_selector = DatabaseTypeSelector()
         self.method_selector = InsertingMethodSelector()
-        runs_layout = QHBoxLayout()
-        runs_label = QLabel("Прогонов:")
+        self.file_input = FileInput(label="CSV-файлы")
+
         self._runs_spin = QSpinBox()
         self._runs_spin.setRange(1, 100)
         self._runs_spin.setValue(10)
-        self._runs_spin.setFixedWidth(60)
-        runs_layout.addWidget(runs_label)
-        runs_layout.addWidget(self._runs_spin)
-        runs_layout.addStretch()
+        self._runs_spin.setFixedWidth(70)
 
+        self._label_input = QLineEdit()
+        self._label_input.setPlaceholderText("например: baseline / with-index")
+        self._label_input.setMaximumWidth(280)
+
+        runs_row = QHBoxLayout()
+        runs_row.addWidget(QLabel("Прогонов на ячейку:"))
+        runs_row.addWidget(self._runs_spin)
+        runs_row.addSpacing(12)
+        runs_row.addWidget(QLabel("Метка сессии:"))
+        runs_row.addWidget(self._label_input, stretch=1)
+
+        test_box = QGroupBox("Тест")
+        test_layout = QVBoxLayout()
+        test_layout.addWidget(self.engine_selector)
+        test_layout.addWidget(self.method_selector)
+        test_layout.addWidget(self.file_input)
+        test_layout.addLayout(runs_row)
+        test_box.setLayout(test_layout)
+
+        # ── Подключение ─────────────────────────────────────────────────────
+        self.db_selector = DatabaseTypeSelector()
+        self.db_params_form = DatabaseParametersForm()
+
+        conn_box = QGroupBox("Подключение")
+        conn_layout = QVBoxLayout()
+        conn_layout.addWidget(self.db_selector)
+        conn_layout.addWidget(self.db_params_form)
+        conn_box.setLayout(conn_layout)
+
+        # ── Сигналы ─────────────────────────────────────────────────────────
         self.engine_selector.log_message.connect(self.log_message)
         self.db_selector.db_changed.connect(self.db_params_form.load_from_env)
         self.file_input.log_message.connect(self.log_message)
@@ -41,23 +77,20 @@ class ConfigWidget(QGroupBox):
         self.method_selector.log_message.connect(self.log_message)
         self.db_params_form.load_from_env(self.db_selector.get_prefix())
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.engine_selector, alignment=Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(self.db_selector, alignment=Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(self.file_input, alignment=Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(self.db_params_form, alignment=Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(self.method_selector, alignment=Qt.AlignmentFlag.AlignLeft)
-        layout.addLayout(runs_layout)
-        layout.addStretch(0)
-        self.setLayout(layout)
+        root = QVBoxLayout()
+        root.addWidget(test_box)
+        root.addWidget(conn_box)
+        root.addStretch(0)
+        self.setLayout(root)
 
     def get_config(self) -> dict:
         return {
-            "engine": self.engine_selector.get_engine(),
+            "engines": self.engine_selector.get_engines(),
+            "methods": self.method_selector.get_methods(),
+            "batch_sizes": self.method_selector.get_batch_sizes(),
+            "csv_files": self.file_input.get_paths(),
             "db_type": self.db_selector.get_db_name(),
             "conn_params": self.db_params_form.get_params(),
-            "csv_file": self.file_input.get_path(),
-            "method": self.method_selector.get_method(),
-            "batch_size": self.method_selector.get_batch_size(),
             "n_runs": self._runs_spin.value(),
+            "label": self._label_input.text().strip(),
         }

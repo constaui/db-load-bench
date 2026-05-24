@@ -1,35 +1,36 @@
-from PyQt6.QtWidgets import QWidget, QFormLayout, QComboBox
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QWidget
 
 
-ENGINE_CONFIGS = {"Python": "Python", "Go": "Go", "Java": "Java", "Rust": "Rust"}
+ENGINES = ["Python", "Go", "Rust", "Java"]
 
 
 class EngineSelector(QWidget):
-    """Окно с выбором движка (языка программирования)"""
+    """Мульти-выбор движков для прогона матрицы экспериментов."""
 
-    engine_changed = pyqtSignal(str)
+    selection_changed = pyqtSignal(list)
     log_message = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.combo = QComboBox()
-        self.combo.addItems(ENGINE_CONFIGS.keys())
-        self.combo.currentTextChanged.connect(self._on_changed)
+        self._boxes: dict[str, QCheckBox] = {}
 
-        layout = QFormLayout()
+        layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addRow("Движок", self.combo)
+        layout.addWidget(QLabel("Движки:"))
+        for i, name in enumerate(ENGINES):
+            cb = QCheckBox(name)
+            cb.setChecked(i == 0)
+            cb.toggled.connect(self._on_changed)
+            self._boxes[name] = cb
+            layout.addWidget(cb)
+        layout.addStretch(1)
         self.setLayout(layout)
 
-    def _on_changed(self, engine_name: str):
-        prefix = ENGINE_CONFIGS.get(engine_name, "")
-        self.log_message.emit(f"Выбран движок: {engine_name}", "INFO")
-        self.engine_changed.emit(prefix)
+    def get_engines(self) -> list[str]:
+        return [name for name, cb in self._boxes.items() if cb.isChecked()]
 
-    def get_prefix(self) -> str:
-        return ENGINE_CONFIGS.get(self.combo.currentText(), "")
-
-    def get_engine(self) -> str:
-        return self.combo.currentText()
+    def _on_changed(self, _checked: bool) -> None:
+        sel = self.get_engines()
+        self.selection_changed.emit(sel)

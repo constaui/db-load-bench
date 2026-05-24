@@ -1,71 +1,94 @@
 from pathlib import Path
-from PyQt6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QHBoxLayout,
-    QFileDialog,
-)
+
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class FileInput(QWidget):
-    """Окно с выбором файла"""
+    """
+    Список CSV-файлов для прогона матрицы (разные размеры данных).
+    """
 
-    file_selected = pyqtSignal(str)
+    files_changed = pyqtSignal(list)
     log_message = pyqtSignal(str, str)
 
-    def __init__(self, label: str = "Файл", parent=None):
+    def __init__(self, label: str = "Файлы CSV", parent=None):
         super().__init__(parent)
 
-        self.label = QLabel(label)
+        self._list = QListWidget()
+        self._list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self._list.setMaximumHeight(110)
 
-        self.input = QLineEdit()
-        self.input.setPlaceholderText("Путь к файлу...")
-        self.input.editingFinished.connect(self._manual_input)
+        self._add_btn = QPushButton("+ Добавить…")
+        self._remove_btn = QPushButton("− Убрать выбранные")
+        self._clear_btn = QPushButton("Очистить")
+        self._add_btn.clicked.connect(self._on_add)
+        self._remove_btn.clicked.connect(self._on_remove)
+        self._clear_btn.clicked.connect(self._on_clear)
 
-        self.button = QPushButton("Выбрать")
-        self.button.clicked.connect(self._open_dialog)
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 0, 0, 0)
+        btn_row.addWidget(self._add_btn)
+        btn_row.addWidget(self._remove_btn)
+        btn_row.addWidget(self._clear_btn)
+        btn_row.addStretch(1)
 
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.label)
-        layout.addWidget(self.input, stretch=1)
-        layout.addWidget(self.button)
-
+        layout.addWidget(QLabel(label))
+        layout.addWidget(self._list)
+        layout.addLayout(btn_row)
         self.setLayout(layout)
 
-    def _open_dialog(self):
+    def _on_add(self) -> None:
         downloads = str(Path.home() / "Downloads")
-
-        path, _ = QFileDialog.getOpenFileName(
+        paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Выберите файл",
+            "Выберите CSV-файлы",
             downloads,
             "CSV Files (*.csv);;All Files (*)",
         )
-
-        if path:
-            self.input.setText(path)
-            self.file_selected.emit(path)
-            self.log_message.emit(f"Выбран файл: {path}", "INFO")
-
-    def _manual_input(self):
-        """Обработка ручного ввода пути"""
-        path = self.input.text().strip()
-
-        if not path:
+        if not paths:
             return
+        existing = set(self.get_paths())
+        added = 0
+        for p in paths:
+            if p in existing:
+                continue
+            self._list.addItem(p)
+            existing.add(p)
+            added += 1
+        if added:
+            self.log_message.emit(f"Добавлено файлов: {added}", "INFO")
+            self.files_changed.emit(self.get_paths())
 
-        if Path(path).exists():
-            self.file_selected.emit(path)
-            self.log_message.emit(f"Путь к файлу: {path}", "INFO")
-        else:
-            self.log_message.emit(f"Файл не найден: {path}", "ERROR")
+    def _on_remove(self) -> None:
+        rows = sorted(
+            (self._list.row(i) for i in self._list.selectedItems()), reverse=True
+        )
+        for r in rows:
+            self._list.takeItem(r)
+        if rows:
+            self.files_changed.emit(self.get_paths())
 
-    def get_path(self) -> str:
-        return self.input.text()
+    def _on_clear(self) -> None:
+        if self._list.count() == 0:
+            return
+        self._list.clear()
+        self.files_changed.emit([])
 
-    def set_path(self, path: str):
-        self.input.setText(path)
+    def get_paths(self) -> list[str]:
+        return [self._list.item(i).text() for i in range(self._list.count())]
+
+    def add_path(self, path: str) -> None:
+        if path and path not in self.get_paths():
+            self._list.addItem(path)
+            self.files_changed.emit(self.get_paths())

@@ -74,17 +74,80 @@ def _data_item(text: str, bg: QColor = COLOR_EMPTY) -> QTableWidgetItem:
     return item
 
 
+def _variant_batch(run) -> int | None:
+    """Возвращает batch_size прогона, если он значим для метода."""
+    return run.batch_size if run.method == "bulk_insert" else None
+
+
+# Тип варианта столбца: (method, batch_size_for_bulk_or_None, rows)
+Variant = tuple[str, "int | None", int]
+
+
 def _collect_stats(
     store: ChartStore, source: MetricSource
-) -> dict[tuple[str, str, str], dict[str, float]]:
-    """Статистика по выбранному источнику для каждой связки (engine, db, method)."""
-    buckets: dict[tuple[str, str, str], list[float]] = defaultdict(list)
+) -> dict[tuple[str, str, str, "int | None", int], dict[str, float]]:
+    """Статистика по ключу (engine, db, method, batch_size, rows).
+    rows входит в ключ, чтобы прогоны на разном объёме не смешивались
+    в одной ячейке таблицы."""
+    buckets: dict[
+        tuple[str, str, str, "int | None", int], list[float]
+    ] = defaultdict(list)
     for run in store:
         v = source.extract(run)
         if v is None:
             continue
-        buckets[(run.engine, run.db_type, run.method)].append(v)
+        key = (
+            run.engine,
+            run.db_type,
+            run.method,
+            _variant_batch(run),
+            run.rows,
+        )
+        buckets[key].append(v)
     return {k: stats_for(v) for k, v in buckets.items()}
+
+
+def _method_variants(store: ChartStore) -> list[Variant]:
+    """Возвращает упорядоченный список встреченных вариантов
+    (method, batch_size, rows). Сначала по порядку методов, затем по
+    rows, затем по batch_size."""
+    order = {"default_insert": 0, "bulk_insert": 1, "file_insert": 2}
+    seen: set[Variant] = set()
+    for r in store:
+        batch = r.batch_size if r.method == "bulk_insert" else None
+        seen.add((r.method, batch, r.rows))
+    return sorted(
+        seen,
+        key=lambda v: (
+            order.get(v[0], 99),
+            v[2],                            # rows
+            v[1] if v[1] is not None else 0, # batch
+        ),
+    )
+
+
+def _has_multiple_rows(store: ChartStore) -> bool:
+    """True, если в store встречается больше одного значения rows."""
+    seen: set[int] = set()
+    for r in store:
+        seen.add(r.rows)
+        if len(seen) > 1:
+            return True
+    return False
+
+
+def _variant_label(
+    method: str, batch: int | None, rows: int, show_rows: bool
+) -> str:
+    """Подпись столбца. Для bulk — с явным batch_size; rows подписывается
+    только если в данных есть более одного значения rows (иначе колонка
+    избыточна)."""
+    base = METHOD_LABELS.get(method, method)
+    if method == "bulk_insert" and batch is not None:
+        base = f"{base}\nb={batch}"
+    if show_rows:
+        base = f"{base}\nN={rows:,}".replace(",", " ")
+    return base
 
 
 def _format_cell(stats: dict[str, float], stat_key: str, source: MetricSource) -> str:
@@ -194,7 +257,8 @@ class ResultsTableWidget(QWidget):
         stats_map = _collect_stats(self._store, source)
         engines = sorted({r.engine for r in self._store})
         db_types = sorted({r.db_type for r in self._store})
-        methods = [m for m in METHODS if any(r.method == m for r in self._store)]
+        variants = _method_variants(self._store)
+        show_rows = _has_multiple_rows(self._store)
 
         values = [
             _stat_value(s, self._stat)
@@ -205,7 +269,8 @@ class ResultsTableWidget(QWidget):
         v_min = min(values) if values else 0.0
         v_max = max(values) if values else 1.0
 
-        n_data_cols = len(db_types) * len(methods)
+        n_variants = len(variants)
+        n_data_cols = len(db_types) * n_variants
         n_cols = 1 + n_data_cols
         n_rows = 2 + len(engines) * 2
 
@@ -215,17 +280,22 @@ class ResultsTableWidget(QWidget):
 
         self._table.setItem(0, 0, _header_item(""))
         for di, db in enumerate(db_types):
-            col_start = 1 + di * len(methods)
+            col_start = 1 + di * n_variants
             self._table.setItem(0, col_start, _header_item(db))
-            if len(methods) > 1:
-                self._table.setSpan(0, col_start, 1, len(methods))
+            if n_variants > 1:
+                self._table.setSpan(0, col_start, 1, n_variants)
 
         self._table.setItem(1, 0, _header_item("Язык", COLOR_SUBHDR))
         for di, _db in enumerate(db_types):
-            for mi, method in enumerate(methods):
-                col = 1 + di * len(methods) + mi
+            for vi, (method, batch, rows_v) in enumerate(variants):
+                col = 1 + di * n_variants + vi
                 self._table.setItem(
-                    1, col, _header_item(METHOD_LABELS.get(method, method), COLOR_SUBHDR)
+                    1,
+                    col,
+                    _header_item(
+                        _variant_label(method, batch, rows_v, show_rows),
+                        COLOR_SUBHDR,
+                    ),
                 )
 
         for ei, engine in enumerate(engines):
@@ -237,12 +307,18 @@ class ResultsTableWidget(QWidget):
             self._table.setSpan(data_row, 0, 2, 1)
 
             for di, db in enumerate(db_types):
-                base_stats = stats_map.get((engine, db, "default_insert"))
-                base_val = _stat_value(base_stats, self._stat) if base_stats else None
-
-                for mi, method in enumerate(methods):
-                    col = 1 + di * len(methods) + mi
-                    stats = stats_map.get((engine, db, method))
+                for vi, (method, batch, rows_v) in enumerate(variants):
+                    col = 1 + di * n_variants + vi
+                    # База ускорения — default_insert при ТЕХ ЖЕ rows.
+                    # Иначе сравнение методов на разных объёмах было бы
+                    # бессмысленным.
+                    base_stats = stats_map.get(
+                        (engine, db, "default_insert", None, rows_v)
+                    )
+                    base_val = (
+                        _stat_value(base_stats, self._stat) if base_stats else None
+                    )
+                    stats = stats_map.get((engine, db, method, batch, rows_v))
 
                     if stats and stats["n"] > 0:
                         val = _stat_value(stats, self._stat)
@@ -258,8 +334,12 @@ class ResultsTableWidget(QWidget):
                         item.setForeground(
                             QColor("white") if t > 0.5 else QColor("#212121")
                         )
+                        variant_tag = method
+                        if method == "bulk_insert" and batch is not None:
+                            variant_tag = f"{method} (batch={batch})"
                         item.setToolTip(
-                            f"<b>{engine} / {db} / {method}</b><br>"
+                            f"<b>{engine} / {db} / {variant_tag}</b><br>"
+                            f"rows = {rows_v:,}<br>"
                             f"источник: {source.label}<br>"
                             f"n = {int(stats['n'])}<br>"
                             f"mean = {source.format(stats['mean'])}<br>"
@@ -317,7 +397,8 @@ class ResultsTableWidget(QWidget):
         stats_map = _collect_stats(self._store, source)
         engines = sorted({r.engine for r in self._store})
         db_types = sorted({r.db_type for r in self._store})
-        methods = [m for m in METHODS if any(r.method == m for r in self._store)]
+        variants = _method_variants(self._store)
+        show_rows = _has_multiple_rows(self._store)
 
         buf = io.StringIO()
         writer = csv_module.writer(buf)
@@ -327,18 +408,25 @@ class ResultsTableWidget(QWidget):
         )
         header = ["Язык"]
         for db in db_types:
-            for method in methods:
-                header.append(f"{db} / {METHOD_LABELS.get(method, method)}")
+            for method, batch, rows_v in variants:
+                col = METHOD_LABELS.get(method, method)
+                if method == "bulk_insert" and batch is not None:
+                    col = f"{col} b={batch}"
+                if show_rows:
+                    col = f"{col} N={rows_v}"
+                header.append(f"{db} / {col}")
         writer.writerow(header)
 
         for engine in engines:
             val_row: list[str] = [engine]
             sp_row: list[str] = [f"{engine} (×default)"]
             for db in db_types:
-                base = stats_map.get((engine, db, "default_insert"))
-                base_val = _stat_value(base, self._stat) if base else None
-                for method in methods:
-                    stats = stats_map.get((engine, db, method))
+                for method, batch, rows_v in variants:
+                    base = stats_map.get(
+                        (engine, db, "default_insert", None, rows_v)
+                    )
+                    base_val = _stat_value(base, self._stat) if base else None
+                    stats = stats_map.get((engine, db, method, batch, rows_v))
                     if stats and stats["n"] > 0:
                         val_row.append(_format_cell(stats, self._stat, source))
                     else:
@@ -356,12 +444,24 @@ class ResultsTableWidget(QWidget):
         writer.writerow([])
         writer.writerow([f"Полная статистика — {source.label}"])
         writer.writerow(
-            ["engine", "db_type", "method", "n", "mean", "median", "std", "min", "max"]
+            [
+                "engine",
+                "db_type",
+                "method",
+                "batch_size",
+                "rows",
+                "n",
+                "mean",
+                "median",
+                "std",
+                "min",
+                "max",
+            ]
         )
         for engine in engines:
             for db in db_types:
-                for method in methods:
-                    stats = stats_map.get((engine, db, method))
+                for method, batch, rows_v in variants:
+                    stats = stats_map.get((engine, db, method, batch, rows_v))
                     if not stats or stats["n"] == 0:
                         continue
                     writer.writerow(
@@ -369,6 +469,8 @@ class ResultsTableWidget(QWidget):
                             engine,
                             db,
                             method,
+                            batch if batch is not None else "",
+                            rows_v,
                             int(stats["n"]),
                             source.format(stats["mean"]),
                             source.format(stats["median"]),

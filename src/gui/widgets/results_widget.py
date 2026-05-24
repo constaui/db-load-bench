@@ -27,6 +27,7 @@ class ResultsWidget(QGroupBox):
         super().__init__("Результаты")
 
         self._store: ChartStore = load_results()
+        self._buffering: bool = False
 
         self._bar = BarChartWidget()
         self._line = LineChartWidget()
@@ -77,6 +78,20 @@ class ResultsWidget(QGroupBox):
         run = MethodRun.from_dict(result)
         add_run(self._store, run)
         save_results(self._store)
+        if self._buffering:
+            # Во время серии не перерисовываем графики — это дорого
+            # и подвешивает GUI. Перерисуем один раз в конце сессии.
+            return
+        self._sync_filter_options()
+        self._refresh()
+
+    def start_session(self, _session_id: str = "", _label: str = "", _total: int = 0):
+        """Начало серии прогонов: буферизуем результаты, не перерисовывая графики."""
+        self._buffering = True
+
+    def end_session(self, _session_id: str = ""):
+        """Окончание серии (нормальное или по Stop): однократный refresh."""
+        self._buffering = False
         self._sync_filter_options()
         self._refresh()
 
