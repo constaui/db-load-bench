@@ -32,9 +32,11 @@ def _resolve_engine_cmd(engine: str, base_cmd: list[str]) -> list[str]:
     """Резолвит команду запуска движка.
 
     Если первый аргумент — путь к файлу:
-      - проверяет существование;
-      - на Windows дополнительно пробует вариант с расширением `.exe`;
-      - если не найдено — бросает FileNotFoundError с подсказкой по сборке.
+      - на Windows ПРИОРИТЕТ у `.exe`-варианта (защита от случая, когда
+        в репозитории лежит чужой бинарь без расширения, скажем,
+        macOS/Linux ELF, который Windows не запустит);
+      - если ничего не подходит — FileNotFoundError с подсказкой и списком
+        проверенных путей.
 
     Если первый аргумент — команда из PATH (`java`, `python`), не трогает её.
     """
@@ -48,20 +50,25 @@ def _resolve_engine_cmd(engine: str, base_cmd: list[str]) -> list[str]:
     if not p.parent or str(p.parent) in ("", "."):
         return base_cmd
 
-    # Файл уже существует — берём как есть.
-    if p.exists():
-        return base_cmd
-
-    # На Windows — пробуем добавить .exe (cargo build / go build кладут
-    # бинарь с этим расширением).
+    # Какие пути проверять — в порядке приоритета:
+    #   На Windows: insert_engine.exe → insert_engine
+    #   На *nix:    insert_engine
+    candidates: list[Path] = []
     if os.name == "nt" and p.suffix == "":
-        exe_path = p.with_suffix(".exe")
-        if exe_path.exists():
-            return [str(exe_path)] + base_cmd[1:]
+        candidates.append(p.with_suffix(".exe"))
+    candidates.append(p)
 
-    # Ничего не нашли — бросаем понятную ошибку с подсказкой.
+    for cand in candidates:
+        if cand.exists():
+            return [str(cand)] + base_cmd[1:]
+
+    # Ничего не нашли — диагностическое сообщение со списком путей.
+    tried = "\n".join(f"  - {c.resolve() if c.parent.exists() else c}" for c in candidates)
+    msg = (
+        f"Бинарник движка '{engine}' не найден.\n"
+        f"Проверены пути:\n{tried}"
+    )
     hint = BUILD_HINTS.get(engine)
-    msg = f"Бинарник движка '{engine}' не найден: {first}"
     if hint:
         msg += f"\nСоберите движок командой:\n  {hint}"
     raise FileNotFoundError(msg)
