@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -23,9 +24,17 @@ class FileInput(QWidget):
     def __init__(self, label: str = "Файлы CSV", parent=None):
         super().__init__(parent)
 
+        self._label = QLabel(label)
+        self._label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+
         self._list = QListWidget()
         self._list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-        self._list.setMaximumHeight(110)
+        # Минимум 5 строк по высоте; дальше растёт сколько даст родитель.
+        row_h = self._list.fontMetrics().height() + 4  # ~высота одной строки
+        self._list.setMinimumHeight(row_h * 5 + 4)
+        self._list.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         self._add_btn = QPushButton("+ Добавить…")
         self._remove_btn = QPushButton("− Убрать выбранные")
@@ -34,17 +43,18 @@ class FileInput(QWidget):
         self._remove_btn.clicked.connect(self._on_remove)
         self._clear_btn.clicked.connect(self._on_clear)
 
+        # Кнопки делят строку поровну (flex-like).
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(0, 0, 0, 0)
-        btn_row.addWidget(self._add_btn)
-        btn_row.addWidget(self._remove_btn)
-        btn_row.addWidget(self._clear_btn)
-        btn_row.addStretch(1)
+        btn_row.addWidget(self._add_btn, stretch=1)
+        btn_row.addWidget(self._remove_btn, stretch=1)
+        btn_row.addWidget(self._clear_btn, stretch=1)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QLabel(label))
-        layout.addWidget(self._list)
+        # Метка и кнопки — фиксированной высоты, список — растягивается.
+        layout.addWidget(self._label, stretch=0)
+        layout.addWidget(self._list, stretch=1)
         layout.addLayout(btn_row)
         self.setLayout(layout)
 

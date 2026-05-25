@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -41,32 +40,21 @@ def _humanize_unicode_error(e: UnicodeDecodeError) -> str:
     return f"Сервер вернул сообщение (декодировано): {msg}"
 
 
-def _format_eta(seconds: float) -> str:
-    seconds = max(0.0, seconds)
-    if seconds < 60:
-        return f"{int(seconds)} с"
-    if seconds < 3600:
-        return f"{int(seconds // 60)}:{int(seconds % 60):02d}"
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    return f"{h} ч {m:02d} мин"
-
-
 class InsertWorker(QThread):
     """
     Прогоняет декартову матрицу: engines × csv_files × methods × batch_sizes × n_runs.
 
-    На каждый MethodRun навешивает session_id, label, timestamp, environment —
-    чтобы спустя время отчёт можно было собрать обратно по сессии.
+    На каждый MethodRun навешивает session_id, timestamp, environment — чтобы
+    спустя время отчёт можно было собрать обратно по сессии.
 
     Stop: graceful между прогонами + kill текущего subprocess'а.
     """
 
     log_message = pyqtSignal(str, str)
     finished = pyqtSignal(dict)
-    run_progress = pyqtSignal(int, int, float)  # current, total, eta_seconds
+    run_progress = pyqtSignal(int, int)  # current, total
     error = pyqtSignal(str)
-    session_started = pyqtSignal(str, str, int)  # session_id, label, total_runs
+    session_started = pyqtSignal(str, int)  # session_id, total_runs
     session_finished = pyqtSignal(str)  # session_id
 
     def __init__(self, config: dict, parent=None) -> None:
@@ -139,22 +127,20 @@ class InsertWorker(QThread):
             db_version = db.get_version()
             env = capture_environment(db_version=db_version)
             session_id = str(uuid.uuid4())
-            label = self.config.get("label", "")
 
             matrix = self._build_matrix()
             n_runs = self.config.get("n_runs", 10)
             total = len(matrix) * n_runs
             processed = 0          # учитывает и успешные, и ошибочные прогоны
-            succeeded = 0          # только успешные (для ETA-усреднения)
-            succeeded_elapsed = 0.0
+            succeeded = 0          # только успешные
 
             self.log_message.emit(
-                f"Сессия {session_id[:8]} — {label or 'без метки'} — "
+                f"Сессия {session_id[:8]} — "
                 f"{len(matrix)} ячеек × {n_runs} прогонов = {total} запусков",
                 "INFO",
             )
-            self.session_started.emit(session_id, label, total)
-            self.run_progress.emit(0, total, 0.0)
+            self.session_started.emit(session_id, total)
+            self.run_progress.emit(0, total)
 
             table = "Test"
             for engine, csv_file, method, batch in matrix:
@@ -177,7 +163,6 @@ class InsertWorker(QThread):
                         break
 
                     success = False
-                    dt = 0.0
                     result = None
                     try:
                         cursor = db.connection.cursor()
@@ -185,7 +170,6 @@ class InsertWorker(QThread):
                         db.connection.commit()
                         cursor.close()
 
-                        t_started = time.perf_counter()
                         timestamp = datetime.now().isoformat(timespec="seconds")
                         result = self._manager.run(
                             method=method,
@@ -193,7 +177,6 @@ class InsertWorker(QThread):
                             table_name=table,
                             batch_size=batch if batch is not None else 1000,
                         )
-                        dt = time.perf_counter() - t_started
                         success = True
                     except RunCancelled:
                         self.log_message.emit("Прогон прерван пользователем", "INFO")
@@ -208,12 +191,10 @@ class InsertWorker(QThread):
 
                     if success and result is not None:
                         result.session_id = session_id
-                        result.label = label
                         result.timestamp = timestamp
                         result.environment = env
 
                         succeeded += 1
-                        succeeded_elapsed += dt
 
                         self.log_message.emit(
                             f"  [{processed}/{total}] {result.rows} строк за "
@@ -222,9 +203,7 @@ class InsertWorker(QThread):
                         )
                         self.finished.emit(result.to_dict())
 
-                    avg = (succeeded_elapsed / succeeded) if succeeded else 0.0
-                    eta = avg * (total - processed)
-                    self.run_progress.emit(processed, total, eta)
+                    self.run_progress.emit(processed, total)
 
                 if self._stopping:
                     break

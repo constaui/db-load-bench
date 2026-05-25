@@ -96,16 +96,28 @@ impl Inserter for MySQLInserter {
     }
 
     fn file_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
-        let path = std::fs::canonicalize(csv_file)?;
-        let path_str = path.to_string_lossy();
+        // НЕ используем fs::canonicalize: на Windows она возвращает UNC-путь
+        // вида `\\?\C:\…`, который попадает в SQL и ломается MySQL-парсером
+        // (тот по умолчанию интерпретирует `\\` и `\?` как escape-последова-
+        // тельности). Берём обычный абсолютный путь.
+        let raw_path = std::path::PathBuf::from(csv_file);
+        let abs_path = if raw_path.is_absolute() {
+            raw_path
+        } else {
+            std::env::current_dir()?.join(raw_path)
+        };
 
         // Считаем строки по самому файлу (минус заголовок). Это надёжнее,
         // чем conn.affected_rows() после LOAD DATA INFILE: в crate mysql v24
         // этот счётчик на больших файлах иногда возвращает не «вставлено
         // строк», а статус последнего пакета (нередко 1). PostgreSQL-движок
         // делает ровно так же.
-        let content = fs::read_to_string(&path)?;
+        let content = fs::read_to_string(&abs_path)?;
         let row_count = content.lines().count().saturating_sub(1);
+
+        // Backslash → forward slash: путь корректен и в Windows API, и в
+        // SQL-строке (forward slashes никак не интерпретируются парсером).
+        let sql_path = abs_path.to_string_lossy().replace('\\', "/");
 
         let sql = format!(
             "LOAD DATA LOCAL INFILE '{}' \
@@ -114,7 +126,7 @@ impl Inserter for MySQLInserter {
             OPTIONALLY ENCLOSED BY '\"' \
             LINES TERMINATED BY '\\n' \
             IGNORE 1 ROWS",
-            path_str,
+            sql_path,
             Self::quote(table)
         );
 

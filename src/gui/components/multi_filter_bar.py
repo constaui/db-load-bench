@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -113,7 +114,11 @@ class _CheckGroup(QGroupBox):
 
 
 class MultiFilterBar(QWidget):
-    """Полоса с тремя группами чекбоксов: Языки / СУБД / Методы."""
+    """Колонка с тремя группами чекбоксов: Языки / СУБД / Методы.
+
+    Группы расположены вертикально, чтобы при большом числе значений
+    чекбоксы не сжимались горизонтально.
+    """
 
     changed = pyqtSignal(FilterSelection)
 
@@ -128,13 +133,12 @@ class MultiFilterBar(QWidget):
         self._dbs.changed.connect(self._emit)
         self._methods.changed.connect(self._emit)
 
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-        layout.addWidget(QLabel("Срезы:"))
-        layout.addWidget(self._engines, stretch=1)
-        layout.addWidget(self._dbs, stretch=1)
-        layout.addWidget(self._methods, stretch=1)
+        layout.setSpacing(4)
+        layout.addWidget(self._engines)
+        layout.addWidget(self._dbs)
+        layout.addWidget(self._methods)
         self.setLayout(layout)
 
     def set_options(

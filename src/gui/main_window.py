@@ -1,7 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QProgressBar,
     QPushButton,
@@ -12,7 +11,6 @@ from PyQt6.QtWidgets import (
 
 from .widgets import ConfigWidget, LogWidget, ResultsWidget
 from .workers import InsertWorker
-from .workers.insert_worker import _format_eta
 
 
 class MainWindow(QMainWindow):
@@ -27,20 +25,17 @@ class MainWindow(QMainWindow):
         self.results_widget = ResultsWidget()
         self.log_widget = LogWidget()
 
+        # Обе кнопки — одинаковые QPushButton без особого стиля.
+        # Стилизация Stop (плоский вид) применяется к обеим.
         self.run_btn = QPushButton("▶ Выполнить серию")
-        self.run_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; padding: 8px; }"
-        )
         self.stop_btn = QPushButton("■ Остановить")
         self.stop_btn.setEnabled(False)
 
+        # Прогресс растягивается на всю строку.
         self._progress = QProgressBar()
         self._progress.setVisible(False)
         self._progress.setTextVisible(True)
         self._progress.setFormat("0 / 0")
-
-        self._eta_label = QLabel("")
-        self._eta_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.run_btn.clicked.connect(self._on_run_clicked)
         self.stop_btn.clicked.connect(self._on_stop_clicked)
@@ -51,19 +46,16 @@ class MainWindow(QMainWindow):
         right_splitter.addWidget(self.log_widget)
         right_splitter.setSizes([600, 200])
 
+        # Кнопки делят строку поровну (flex-like) и занимают её целиком.
         btn_row = QHBoxLayout()
-        btn_row.addWidget(self.run_btn, stretch=2)
+        btn_row.addWidget(self.run_btn, stretch=1)
         btn_row.addWidget(self.stop_btn, stretch=1)
-
-        progress_row = QHBoxLayout()
-        progress_row.addWidget(self._progress, stretch=3)
-        progress_row.addWidget(self._eta_label, stretch=1)
 
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.addWidget(self.config_widget)
-        left_layout.addLayout(progress_row)
+        left_layout.addWidget(self._progress)
         left_layout.addLayout(btn_row)
 
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -94,7 +86,6 @@ class MainWindow(QMainWindow):
         self._progress.setVisible(True)
         self._progress.setValue(0)
         self._progress.setFormat("0 / 0")
-        self._eta_label.setText("")
 
         self.worker.start()
 
@@ -104,14 +95,10 @@ class MainWindow(QMainWindow):
             self.stop_btn.setText("Останавливаем...")
             self.worker.stop()
 
-    def _on_progress(self, current: int, total: int, eta_seconds: float):
+    def _on_progress(self, current: int, total: int):
         self._progress.setMaximum(total if total > 0 else 1)
         self._progress.setValue(current)
         self._progress.setFormat(f"{current} / {total}")
-        if current > 0 and current < total:
-            self._eta_label.setText(f"ETA: {_format_eta(eta_seconds)}")
-        else:
-            self._eta_label.setText("")
 
     def _on_session_error(self, _msg: str):
         # Если сессия упала уже после start_session — буфер мог остаться поднятым,

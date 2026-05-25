@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +18,53 @@ ENGINES = {
     "Java": ["java", "-jar", str(Path("engines/java/target/insert_engine.jar"))],
     "Rust": [str(Path("engines/rust/target/release/insert_engine"))],
 }
+
+
+# Инструкции по сборке — попадают в сообщение об ошибке, если бинарник не найден.
+BUILD_HINTS = {
+    "Go":   "cd engines/go && go build -o insert_engine",
+    "Java": "cd engines/java && mvn -q package -DskipTests",
+    "Rust": "cd engines/rust && cargo build --release",
+}
+
+
+def _resolve_engine_cmd(engine: str, base_cmd: list[str]) -> list[str]:
+    """Резолвит команду запуска движка.
+
+    Если первый аргумент — путь к файлу:
+      - проверяет существование;
+      - на Windows дополнительно пробует вариант с расширением `.exe`;
+      - если не найдено — бросает FileNotFoundError с подсказкой по сборке.
+
+    Если первый аргумент — команда из PATH (`java`, `python`), не трогает её.
+    """
+    if not base_cmd:
+        raise ValueError(f"Пустая команда для движка '{engine}'")
+
+    first = base_cmd[0]
+    p = Path(first)
+
+    # Команда из PATH (без директории): пусть ОС резолвит сама.
+    if not p.parent or str(p.parent) in ("", "."):
+        return base_cmd
+
+    # Файл уже существует — берём как есть.
+    if p.exists():
+        return base_cmd
+
+    # На Windows — пробуем добавить .exe (cargo build / go build кладут
+    # бинарь с этим расширением).
+    if os.name == "nt" and p.suffix == "":
+        exe_path = p.with_suffix(".exe")
+        if exe_path.exists():
+            return [str(exe_path)] + base_cmd[1:]
+
+    # Ничего не нашли — бросаем понятную ошибку с подсказкой.
+    hint = BUILD_HINTS.get(engine)
+    msg = f"Бинарник движка '{engine}' не найден: {first}"
+    if hint:
+        msg += f"\nСоберите движок командой:\n  {hint}"
+    raise FileNotFoundError(msg)
 
 
 class ProcessManager:
@@ -96,7 +144,10 @@ class ProcessManager:
     def _build_cmd(
         self, method: str, csv_file: str, table_name: str, batch_size: int
     ) -> list[str]:
-        cmd = ENGINES[self.engine] + [
+        # Резолвим путь к бинарнику движка (с подсказкой про сборку
+        # вместо невнятного «WinError 2» от subprocess).
+        base = _resolve_engine_cmd(self.engine, ENGINES[self.engine])
+        cmd = base + [
             "--method",
             method,
             "--csv",

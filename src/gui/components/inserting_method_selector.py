@@ -41,8 +41,12 @@ class InsertingMethodSelector(QWidget):
         method_row.addStretch(1)
 
         self._batch_input = QLineEdit("1000")
-        self._batch_input.setPlaceholderText("через запятую: 100, 500, 1000")
-        self._batch_label = QLabel("Batch sizes (bulk):")
+        self._batch_input.setPlaceholderText("например: 100, 500, 1000")
+        self._batch_input.setToolTip(
+            "Можно указать несколько значений через запятую — каждое создаст "
+            "отдельную ячейку матрицы.\nПример: 100, 500, 1000, 5000"
+        )
+        self._batch_label = QLabel("Batch sizes (через запятую):")
 
         batch_row = QHBoxLayout()
         batch_row.setContentsMargins(0, 0, 0, 0)

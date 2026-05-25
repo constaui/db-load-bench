@@ -109,7 +109,7 @@ class ResultsWidget(QGroupBox):
         self._sync_filter_options()
         self._refresh()
 
-    def start_session(self, _session_id: str = "", _label: str = "", _total: int = 0):
+    def start_session(self, _session_id: str = "", _total: int = 0):
         """Начало серии прогонов: буферизуем результаты, не перерисовывая графики."""
         self._buffering = True
 

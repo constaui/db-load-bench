@@ -1,10 +1,8 @@
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QSpinBox,
     QVBoxLayout,
 )
@@ -39,22 +37,17 @@ class ConfigWidget(QGroupBox):
         self._runs_spin.setValue(10)
         self._runs_spin.setFixedWidth(70)
 
-        self._label_input = QLineEdit()
-        self._label_input.setPlaceholderText("например: baseline / with-index")
-        self._label_input.setMaximumWidth(280)
-
         runs_row = QHBoxLayout()
         runs_row.addWidget(QLabel("Прогонов на ячейку:"))
         runs_row.addWidget(self._runs_spin)
-        runs_row.addSpacing(12)
-        runs_row.addWidget(QLabel("Метка сессии:"))
-        runs_row.addWidget(self._label_input, stretch=1)
+        runs_row.addStretch(1)
 
         test_box = QGroupBox("Тест")
         test_layout = QVBoxLayout()
-        test_layout.addWidget(self.engine_selector)
-        test_layout.addWidget(self.method_selector)
-        test_layout.addWidget(self.file_input)
+        test_layout.addWidget(self.engine_selector, stretch=0)
+        test_layout.addWidget(self.method_selector, stretch=0)
+        # Список CSV-файлов забирает излишек вертикального пространства.
+        test_layout.addWidget(self.file_input, stretch=1)
         test_layout.addLayout(runs_row)
         test_box.setLayout(test_layout)
 
@@ -77,10 +70,11 @@ class ConfigWidget(QGroupBox):
         self.method_selector.log_message.connect(self.log_message)
         self.db_params_form.load_from_env(self.db_selector.get_prefix())
 
+        # test_box растягивается (там список CSV) — он принимает излишек
+        # высоты; conn_box остаётся компактным сверху.
         root = QVBoxLayout()
-        root.addWidget(test_box)
-        root.addWidget(conn_box)
-        root.addStretch(0)
+        root.addWidget(test_box, stretch=1)
+        root.addWidget(conn_box, stretch=0)
         self.setLayout(root)
 
     def get_config(self) -> dict:
@@ -92,5 +86,4 @@ class ConfigWidget(QGroupBox):
             "db_type": self.db_selector.get_db_name(),
             "conn_params": self.db_params_form.get_params(),
             "n_runs": self._runs_spin.value(),
-            "label": self._label_input.text().strip(),
         }
