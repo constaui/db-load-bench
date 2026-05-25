@@ -20,6 +20,27 @@ DB_CLASSES = {
 }
 
 
+def _decode_libpq_bytes(raw: bytes) -> str:
+    """Перебирает вероятные кодировки сообщений libpq/MySQL: UTF-8 → cp1251
+    (русская Windows) → cp1252 (западноевропейская Windows) → latin-1."""
+    for enc in ("utf-8", "cp1251", "cp1252", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("latin-1", errors="replace")
+
+
+def _humanize_unicode_error(e: UnicodeDecodeError) -> str:
+    """Превращает сырой UnicodeDecodeError в осмысленное сообщение,
+    декодируя байты из e.object подходящей кодировкой."""
+    raw = e.object if isinstance(e.object, (bytes, bytearray)) else b""
+    if not raw:
+        return f"Сервер вернул сообщение в не-UTF8 кодировке: {e}"
+    msg = _decode_libpq_bytes(bytes(raw)).strip()
+    return f"Сервер вернул сообщение (декодировано): {msg}"
+
+
 def _format_eta(seconds: float) -> str:
     seconds = max(0.0, seconds)
     if seconds < 60:
@@ -226,9 +247,29 @@ class InsertWorker(QThread):
         except DatabaseConnectionError as e:
             self.log_message.emit(str(e), "ERROR")
             self.error.emit(str(e))
+        except UnicodeDecodeError as e:
+            # libpq / mysql.connector могут вернуть локализованное сообщение
+            # в кодировке OS (cp1251 на русской Windows). Декодируем сами
+            # и показываем настоящую причину ошибки вместо «invalid byte».
+            human = _humanize_unicode_error(e)
+            self.log_message.emit(human, "ERROR")
+            self.error.emit(human)
         except Exception as e:
-            self.log_message.emit(f"Неожиданная ошибка: {e}", "ERROR")
-            self.error.emit(str(e))
+            # На всякий случай — если UnicodeDecodeError вложен в другую
+            # ошибку (бывает в C-расширениях), пытаемся раскопать причину.
+            cause = e
+            depth = 0
+            while cause and depth < 5:
+                if isinstance(cause, UnicodeDecodeError):
+                    msg = _humanize_unicode_error(cause)
+                    self.log_message.emit(msg, "ERROR")
+                    self.error.emit(msg)
+                    break
+                cause = cause.__cause__ or cause.__context__
+                depth += 1
+            else:
+                self.log_message.emit(f"Неожиданная ошибка: {e}", "ERROR")
+                self.error.emit(str(e))
         finally:
             if db:
                 db.close()
