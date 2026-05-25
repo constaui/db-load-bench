@@ -5,6 +5,22 @@ from .base import BaseDatabase
 from .exceptions import DatabaseConnectionError
 
 
+def _decode_libpq_bytes(raw: bytes) -> str:
+    """Декодирует «сырые» байты от libpq, перебирая вероятные кодировки.
+
+    Опция `-c lc_messages=C` применяется сервером ПОСЛЕ авторизации, поэтому
+    ошибки, возникшие на этапе подключения (неверный пароль, отсутствующая
+    база, неверный хост), возвращаются в локали сервера — обычно cp1251 на
+    русской Windows. psycopg2 декодирует их как UTF-8 и падает.
+    """
+    for enc in ("utf-8", "cp1251", "cp1252", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("latin-1", errors="replace")
+
+
 class PgSQLDatabase(BaseDatabase):
 
     def connect(self):
@@ -18,6 +34,19 @@ class PgSQLDatabase(BaseDatabase):
             cfg["options"] = (existing + " -c lc_messages=C").strip()
             cfg.setdefault("client_encoding", "UTF8")
             self.connection = psycopg2.connect(**cfg)
+        except UnicodeDecodeError as e:
+            # libpq вернул сообщение в не-UTF8 кодировке. Декодируем сами и
+            # пробрасываем понятное сообщение наверх — без этого приложение
+            # упало бы с непойманным UnicodeDecodeError.
+            raw = e.object if isinstance(e.object, (bytes, bytearray)) else b""
+            msg = (
+                _decode_libpq_bytes(bytes(raw)).strip()
+                if raw
+                else "(не удалось извлечь сообщение)"
+            )
+            raise DatabaseConnectionError(
+                f"PostgreSQL connection failed: {msg}"
+            ) from e
         except Error as e:
             raise DatabaseConnectionError(f"PostgreSQL connection failed: {e}") from e
 

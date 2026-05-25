@@ -3,18 +3,38 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 
+def _decode_libpq_bytes(raw: bytes) -> str:
+    """Перебор вероятных кодировок ошибок libpq (см. src/db/pgsql.py)."""
+    for enc in ("utf-8", "cp1251", "cp1252", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("latin-1", errors="replace")
+
+
 def _connect(conn_params: dict):
-    return psycopg2.connect(
-        host=conn_params["host"],
-        port=conn_params["port"],
-        user=conn_params["user"],
-        password=conn_params["password"],
-        dbname=conn_params["database"],
-        # ASCII-сообщения от сервера и UTF-8 для данных:
-        # защита от UnicodeDecodeError на Windows с русской локалью.
-        options="-c lc_messages=C",
-        client_encoding="UTF8",
-    )
+    try:
+        return psycopg2.connect(
+            host=conn_params["host"],
+            port=conn_params["port"],
+            user=conn_params["user"],
+            password=conn_params["password"],
+            dbname=conn_params["database"],
+            # ASCII-сообщения от сервера (применяется ПОСЛЕ авторизации)
+            # и UTF-8 для данных. Для ошибок этапа подключения дополнительно
+            # ловим UnicodeDecodeError ниже.
+            options="-c lc_messages=C",
+            client_encoding="UTF8",
+        )
+    except UnicodeDecodeError as e:
+        raw = e.object if isinstance(e.object, (bytes, bytearray)) else b""
+        msg = (
+            _decode_libpq_bytes(bytes(raw)).strip()
+            if raw
+            else "(не удалось извлечь сообщение)"
+        )
+        raise RuntimeError(f"PostgreSQL connection failed: {msg}") from e
 
 
 def _quote(name: str) -> str:
