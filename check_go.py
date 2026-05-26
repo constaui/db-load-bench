@@ -27,6 +27,17 @@ for item in sorted(go_dir.iterdir()):
     print(f"  {marker} {item.name:30s} {size}")
 print()
 
+# Особый случай для Windows: бинарь без расширения
+no_ext = go_dir / "insert_engine"
+exe = go_dir / "insert_engine.exe"
+if os.name == "nt" and no_ext.exists() and not exe.exists():
+    print("  ⚠ Обнаружен 'insert_engine' БЕЗ расширения .exe.")
+    print("    Windows такой файл запустить не может.")
+    print("    Самый быстрый фикс — переименовать:")
+    print("       cd engines\\go")
+    print("       ren insert_engine insert_engine.exe")
+    print()
+
 # 2. Что говорит резолвер
 print("=== Резолвер process_manager._resolve_engine_cmd ===")
 try:
@@ -40,14 +51,11 @@ except FileNotFoundError as e:
     print(f"  ❌ Резолвер бросил ошибку:")
     for line in str(e).split("\n"):
         print(f"     {line}")
-    print("\nЧто делать: соберите Go-движок:")
-    print("  cd engines\\go")
-    print("  go build -o insert_engine")
     sys.exit(1)
 print()
 
-# 3. Пробуем запустить бинарник напрямую и посмотреть, что скажет
-print("=== Тестовый запуск бинарника (--help или просто старт) ===")
+# 3. Пробуем запустить бинарник
+print("=== Тестовый запуск бинарника ===")
 try:
     proc = subprocess.run(
         [cmd[0], "--csv", "nonexistent.csv"],
@@ -55,17 +63,16 @@ try:
         text=True,
         timeout=5,
     )
-    print(f"  Запустился! returncode={proc.returncode}")
+    print(f"  ✓ Запустился! returncode={proc.returncode}")
     if proc.stderr:
         print(f"  stderr: {proc.stderr.strip()[:200]}")
     if proc.stdout:
         print(f"  stdout: {proc.stdout.strip()[:200]}")
 except FileNotFoundError as e:
     print(f"  ❌ subprocess.Popen: {e}")
-    print(f"  Файл существует но Windows не может его запустить.")
-    print(f"  Возможно, это бинарь от macOS/Linux в Windows-папке.")
-    print(f"  Пересоберите: cd engines\\go && go build -o insert_engine")
+    print(f"  Файл существует, но Windows не может его запустить.")
+    print(f"  Вероятная причина: файл не имеет расширения .exe.")
 except subprocess.TimeoutExpired:
-    print("  ⚠ Зависло на 5 сек (возможно, прошло аргументы)")
+    print("  ⚠ Зависло на 5 сек (значит запустился и куда-то залез)")
 except OSError as e:
     print(f"  ❌ OSError: {e}")

@@ -21,22 +21,46 @@ ENGINES = {
 
 
 # Инструкции по сборке — попадают в сообщение об ошибке, если бинарник не найден.
-BUILD_HINTS = {
+# На Windows важно указать .exe явно: некоторые версии Go не добавляют его сами.
+BUILD_HINTS_POSIX = {
     "Go":   "cd engines/go && go build -o insert_engine",
     "Java": "cd engines/java && mvn -q package -DskipTests",
     "Rust": "cd engines/rust && cargo build --release",
 }
+
+BUILD_HINTS_WINDOWS = {
+    "Go":   "cd engines\\go && go build -o insert_engine.exe",
+    "Java": "cd engines\\java && mvn -q package -DskipTests",
+    "Rust": "cd engines\\rust && cargo build --release",
+}
+
+
+def _build_hint(engine: str) -> str:
+    table = BUILD_HINTS_WINDOWS if os.name == "nt" else BUILD_HINTS_POSIX
+    return table.get(engine, "")
+
+
+# Расширения исполняемых файлов на Windows. PE-loader запускает только их.
+WIN_EXEC_EXTENSIONS = {".exe", ".bat", ".cmd", ".com"}
+
+
+def _is_executable_on_this_os(path: Path) -> bool:
+    """На Windows исполняемым считается файл с .exe/.bat/.cmd/.com.
+    На *nix — любой существующий файл (биты исполняемости проверять
+    не будем — это ответственность пользователя)."""
+    if os.name == "nt":
+        return path.suffix.lower() in WIN_EXEC_EXTENSIONS
+    return True
 
 
 def _resolve_engine_cmd(engine: str, base_cmd: list[str]) -> list[str]:
     """Резолвит команду запуска движка.
 
     Если первый аргумент — путь к файлу:
-      - на Windows ПРИОРИТЕТ у `.exe`-варианта (защита от случая, когда
-        в репозитории лежит чужой бинарь без расширения, скажем,
-        macOS/Linux ELF, который Windows не запустит);
-      - если ничего не подходит — FileNotFoundError с подсказкой и списком
-        проверенных путей.
+      - на Windows ПРИОРИТЕТ у `.exe`-варианта; файлы без исполняемого
+        расширения отвергаются (Windows их не запустит);
+      - если ничего не подходит — FileNotFoundError с диагностикой:
+        что искалось, что было найдено, что нужно сделать.
 
     Если первый аргумент — команда из PATH (`java`, `python`), не трогает её.
     """
@@ -50,27 +74,59 @@ def _resolve_engine_cmd(engine: str, base_cmd: list[str]) -> list[str]:
     if not p.parent or str(p.parent) in ("", "."):
         return base_cmd
 
-    # Какие пути проверять — в порядке приоритета:
-    #   На Windows: insert_engine.exe → insert_engine
-    #   На *nix:    insert_engine
+    on_windows = os.name == "nt"
+
+    # Пути-кандидаты в порядке приоритета:
+    #   Windows: insert_engine.exe → insert_engine.bat → insert_engine.cmd → insert_engine
+    #   POSIX:   insert_engine
     candidates: list[Path] = []
-    if os.name == "nt" and p.suffix == "":
-        candidates.append(p.with_suffix(".exe"))
+    if on_windows and p.suffix == "":
+        for ext in (".exe", ".bat", ".cmd"):
+            candidates.append(p.with_suffix(ext))
     candidates.append(p)
 
     for cand in candidates:
-        if cand.exists():
-            return [str(cand)] + base_cmd[1:]
+        if not cand.exists():
+            continue
+        if not _is_executable_on_this_os(cand):
+            # На Windows файл без .exe (или подобного) запустить нельзя —
+            # пропускаем, дальше упадём с понятной ошибкой.
+            continue
+        return [str(cand)] + base_cmd[1:]
 
-    # Ничего не нашли — диагностическое сообщение со списком путей.
-    tried = "\n".join(f"  - {c.resolve() if c.parent.exists() else c}" for c in candidates)
+    # Ничего не нашли. Строим диагностическое сообщение.
+    tried_lines = []
+    for cand in candidates:
+        path_repr = cand.resolve() if cand.parent.exists() else cand
+        if not cand.exists():
+            tried_lines.append(f"  - {path_repr}  (нет)")
+        elif not _is_executable_on_this_os(cand):
+            tried_lines.append(
+                f"  - {path_repr}  (есть, но Windows не запустит без .exe)"
+            )
+        else:
+            # Сюда не должны попасть — такой бы уже прошёл проверку.
+            tried_lines.append(f"  - {path_repr}  (?)")
+
     msg = (
         f"Бинарник движка '{engine}' не найден.\n"
-        f"Проверены пути:\n{tried}"
+        f"Проверены пути:\n" + "\n".join(tried_lines)
     )
-    hint = BUILD_HINTS.get(engine)
+
+    # Если на Windows есть файл без расширения — добавим явное объяснение.
+    if on_windows and p.suffix == "" and p.exists():
+        msg += (
+            f"\n\nЗАМЕЧАНИЕ: файл '{p.name}' лежит на месте, но Windows не\n"
+            f"может его исполнить без расширения .exe. Скорее всего, бинарь\n"
+            f"был собран не на Windows, либо `go build` не добавил .exe.\n"
+            f"Самый быстрый фикс — переименовать:\n"
+            f"  ren {p} {p.name}.exe"
+        )
+
+    hint = _build_hint(engine)
     if hint:
-        msg += f"\nСоберите движок командой:\n  {hint}"
+        msg += f"\n\nИли пересобрать движок:\n  {hint}"
+
     raise FileNotFoundError(msg)
 
 

@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
@@ -171,15 +172,19 @@ func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 	return rowCount, nil
 }
 
+// toAbsPath возвращает абсолютный путь к файлу в форме, пригодной для:
+//   1) mysql.RegisterLocalFile — реестр путей, разрешённых для LOAD DATA LOCAL;
+//   2) подстановки в SQL-строку `LOAD DATA LOCAL INFILE '...'`.
+//
+// Заменяем все `\` на `/`: на Windows MySQL-парсер по умолчанию интерпретирует
+// `\\`, `\U`, `\t` и т.д. как escape-последовательности и портит путь.
+// Forward slashes одинаково корректны и в Windows API, и в MySQL.
 func toAbsPath(path string) (string, error) {
-	if strings.HasPrefix(path, "/") {
-		return path, nil
-	}
-	wd, err := os.Getwd()
+	abs, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
-	return wd + "/" + path, nil
+	return strings.ReplaceAll(abs, `\`, "/"), nil
 }
 
 func rowToArgs(row []string) []interface{} {
