@@ -37,78 +37,79 @@ public class InserterMySQL implements Inserter {
 
     @Override
     public int defaultInsert(String csvFile, String tableName) throws Exception {
-        CSVReader data = new CSVReader(csvFile);
-
-        String cols = buildCols(data.headers);
-        String phs  = buildPlaceholders(data.headers.size(), false);
-        String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
-                                    quote(tableName), cols, phs);
-
+        int total = 0;
         conn.setAutoCommit(false);
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (String[] row : data.rows) {
-                for (int i = 0; i < row.length; i++) {
-                    ps.setString(i + 1, row[i]);
+        try (CSVStream csv = new CSVStream(csvFile)) {
+            String cols = buildCols(csv.headers);
+            String phs  = buildPlaceholders(csv.headers.size(), false);
+            String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
+                                        quote(tableName), cols, phs);
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                while (csv.hasNext()) {
+                    String[] row = csv.next();
+                    for (int i = 0; i < row.length; i++) {
+                        ps.setString(i + 1, row[i]);
+                    }
+                    ps.executeUpdate();
+                    total++;
                 }
-                ps.executeUpdate();
+                conn.commit();
             }
-            conn.commit();
         } catch (Exception e) {
             conn.rollback();
             throw e;
         } finally {
             conn.setAutoCommit(true);
         }
-
-        return data.rows.size();
+        return total;
     }
 
     @Override
     public int bulkInsert(String csvFile, String tableName, int batchSize) throws Exception {
-        CSVReader data = new CSVReader(csvFile);
-
-        String cols = buildCols(data.headers);
-        String phs  = buildPlaceholders(data.headers.size(), false);
-        String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
-                                    quote(tableName), cols, phs);
-
-        conn.setAutoCommit(false);
         int total = 0;
+        conn.setAutoCommit(false);
+        try (CSVStream csv = new CSVStream(csvFile)) {
+            String cols = buildCols(csv.headers);
+            String phs  = buildPlaceholders(csv.headers.size(), false);
+            String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
+                                        quote(tableName), cols, phs);
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            int count = 0;
-            for (String[] row : data.rows) {
-                for (int i = 0; i < row.length; i++) {
-                    ps.setString(i + 1, row[i]);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                int count = 0;
+                while (csv.hasNext()) {
+                    String[] row = csv.next();
+                    for (int i = 0; i < row.length; i++) {
+                        ps.setString(i + 1, row[i]);
+                    }
+                    ps.addBatch();
+                    count++;
+
+                    if (count >= batchSize) {
+                        ps.executeBatch();
+                        total += count;
+                        count = 0;
+                    }
                 }
-                ps.addBatch();
-                count++;
-
-                if (count % batchSize == 0) {
+                if (count > 0) {
                     ps.executeBatch();
                     total += count;
-                    count = 0;
                 }
+                conn.commit();
             }
-            if (count > 0) {
-                ps.executeBatch();
-                total += count;
-            }
-            conn.commit();
         } catch (Exception e) {
             conn.rollback();
             throw e;
         } finally {
             conn.setAutoCommit(true);
         }
-
         return total;
     }
 
     @Override
     public int fileInsert(String csvFile, String tableName) throws Exception {
-        CSVReader data = new CSVReader(csvFile);
-
+        // НЕ парсим файл в Java — для LOAD DATA LOCAL INFILE сервер сам
+        // читает CSV. CSVReader на 10⁷ строк давал OutOfMemoryError.
         File   f       = new File(csvFile);
         String absPath = f.getAbsolutePath().replace("\\", "/");
 
@@ -121,9 +122,12 @@ public class InserterMySQL implements Inserter {
             IGNORE 1 ROWS
             """, absPath, quote(tableName));
 
+        int affected;
         conn.setAutoCommit(false);
         try (Statement st = conn.createStatement()) {
-            st.execute(sql);
+            // executeUpdate() для LOAD DATA INFILE возвращает количество
+            // вставленных строк (из OK-пакета MySQL).
+            affected = st.executeUpdate(sql);
             conn.commit();
         } catch (Exception e) {
             conn.rollback();
@@ -132,7 +136,7 @@ public class InserterMySQL implements Inserter {
             conn.setAutoCommit(true);
         }
 
-        return data.rows.size();
+        return affected;
     }
 
     private String buildCols(List<String> headers) {

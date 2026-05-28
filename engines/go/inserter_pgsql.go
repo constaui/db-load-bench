@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -46,14 +45,15 @@ func (ins *PgSQLInserter) placeholder(i int) string {
 }
 
 func (ins *PgSQLInserter) DefaultInsert(csvFile, tableName string) (int, error) {
-	data, err := readCSV(csvFile)
+	stream, err := openCSV(csvFile)
 	if err != nil {
 		return 0, err
 	}
+	defer stream.Close()
 
-	cols := make([]string, len(data.Headers))
-	phs  := make([]string, len(data.Headers))
-	for i, h := range data.Headers {
+	cols := make([]string, len(stream.Headers))
+	phs  := make([]string, len(stream.Headers))
+	for i, h := range stream.Headers {
 		cols[i] = ins.quote(h)
 		phs[i]  = ins.placeholder(i)
 	}
@@ -69,7 +69,6 @@ func (ins *PgSQLInserter) DefaultInsert(csvFile, tableName string) (int, error) 
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
-
 	stmt, err := tx.Prepare(query)
 	if err != nil {
 		tx.Rollback()
@@ -77,110 +76,132 @@ func (ins *PgSQLInserter) DefaultInsert(csvFile, tableName string) (int, error) 
 	}
 	defer stmt.Close()
 
-	for _, row := range data.Rows {
+	count := 0
+	for {
+		row, ok, err := stream.Next()
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+		if !ok {
+			break
+		}
 		if _, err := stmt.Exec(rowToArgs(row)...); err != nil {
 			tx.Rollback()
 			return 0, fmt.Errorf("exec row: %w", err)
 		}
+		count++
 	}
 
-	return len(data.Rows), tx.Commit()
+	return count, tx.Commit()
 }
 
 func (ins *PgSQLInserter) BulkInsert(csvFile, tableName string, batchSize int) (int, error) {
-	data, err := readCSV(csvFile)
+	stream, err := openCSV(csvFile)
 	if err != nil {
 		return 0, err
 	}
+	defer stream.Close()
 
-	cols := make([]string, len(data.Headers))
-	for i, h := range data.Headers {
+	cols := make([]string, len(stream.Headers))
+	for i, h := range stream.Headers {
 		cols[i] = ins.quote(h)
 	}
 	colStr := strings.Join(cols, ", ")
 	table  := ins.quote(tableName)
+	ncols  := len(stream.Headers)
 	total  := 0
 
-	for i := 0; i < len(data.Rows); i += batchSize {
-		end := i + batchSize
-		if end > len(data.Rows) {
-			end = len(data.Rows)
+	batch := make([][]string, 0, batchSize)
+
+	flushBatch := func() error {
+		if len(batch) == 0 {
+			return nil
 		}
-		batch := data.Rows[i:end]
-
+		// PostgreSQL использует $N плейсхолдеры с глобальной нумерацией —
+		// строим её на лету для каждой пачки.
 		valueStrings := make([]string, len(batch))
-		valueArgs    := make([]interface{}, 0, len(batch)*len(data.Headers))
-
+		valueArgs    := make([]interface{}, 0, len(batch)*ncols)
 		for j, row := range batch {
-			phs := make([]string, len(data.Headers))
-			for k := range data.Headers {
-				phs[k] = ins.placeholder(j*len(data.Headers) + k)
+			phs := make([]string, ncols)
+			for k := 0; k < ncols; k++ {
+				phs[k] = ins.placeholder(j*ncols + k)
 			}
 			valueStrings[j] = "(" + strings.Join(phs, ", ") + ")"
 			valueArgs = append(valueArgs, rowToArgs(row)...)
 		}
-
 		query := fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES %s",
 			table, colStr, strings.Join(valueStrings, ", "),
 		)
-
 		tx, err := ins.db.Begin()
 		if err != nil {
-			return total, fmt.Errorf("begin tx: %w", err)
+			return fmt.Errorf("begin tx: %w", err)
 		}
 		if _, err := tx.Exec(query, valueArgs...); err != nil {
 			tx.Rollback()
-			return total, fmt.Errorf("exec batch: %w", err)
+			return fmt.Errorf("exec batch: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
-			return total, fmt.Errorf("commit: %w", err)
+			return fmt.Errorf("commit: %w", err)
 		}
 		total += len(batch)
+		batch = batch[:0]
+		return nil
+	}
+
+	for {
+		row, ok, err := stream.Next()
+		if err != nil {
+			return total, err
+		}
+		if !ok {
+			break
+		}
+		batch = append(batch, row)
+		if len(batch) >= batchSize {
+			if err := flushBatch(); err != nil {
+				return total, err
+			}
+		}
+	}
+	if err := flushBatch(); err != nil {
+		return total, err
 	}
 
 	return total, nil
 }
 
 func (ins *PgSQLInserter) FileInsert(csvFile, tableName string) (int, error) {
-	data, err := readCSV(csvFile)
-	if err != nil {
-		return 0, err
-	}
-
-	var buf bytes.Buffer
-	writer := csv.NewWriter(&buf)
-
-	cleanHeaders := make([]string, len(data.Headers))
-	for i, h := range data.Headers {
-		cleanHeaders[i] = cleanStr(h)
-	}
-	writer.Write(cleanHeaders)
-	writer.WriteAll(data.Rows)
-	writer.Flush()
-
+	// Файл не парсим в Go вообще — стримим напрямую через COPY FROM STDIN.
+	// PostgreSQL сам понимает CSV (RFC 4180). RowsAffected возвращает
+	// фактическое число вставленных строк.
 	ctx := context.Background()
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		ins.params.Host, ins.params.Port,
 		ins.params.User, ins.params.Password, ins.params.Database,
 	)
-
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		return 0, fmt.Errorf("pgx connect: %w", err)
 	}
 	defer conn.Close(ctx)
 
+	f, err := os.Open(csvFile)
+	if err != nil {
+		return 0, fmt.Errorf("open csv: %w", err)
+	}
+	defer f.Close()
+
 	copySQL := fmt.Sprintf(
 		"COPY %s FROM STDIN WITH (FORMAT csv, HEADER true)",
 		ins.quote(tableName),
 	)
 
-	tag, err := conn.PgConn().CopyFrom(ctx, &buf, copySQL)
+	tag, err := conn.PgConn().CopyFrom(ctx, f, copySQL)
 	if err != nil {
 		return 0, fmt.Errorf("copy from stdin: %w", err)
 	}
-
 	return int(tag.RowsAffected()), nil
 }

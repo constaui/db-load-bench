@@ -47,101 +47,94 @@ public class InserterPgSQL implements Inserter {
 
     @Override
     public int defaultInsert(String csvFile, String tableName) throws Exception {
-        CSVReader data = new CSVReader(csvFile);
-
-        String cols = buildCols(data.headers);
-        String phs  = buildPlaceholders(data.headers.size());
-        String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
-                                    quote(tableName), cols, phs);
-
+        int total = 0;
         conn.setAutoCommit(false);
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (String[] row : data.rows) {
-                for (int i = 0; i < row.length; i++) {
-                    ps.setString(i + 1, row[i]);
+        try (CSVStream csv = new CSVStream(csvFile)) {
+            String cols = buildCols(csv.headers);
+            String phs  = buildPlaceholders(csv.headers.size());
+            String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
+                                        quote(tableName), cols, phs);
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                while (csv.hasNext()) {
+                    String[] row = csv.next();
+                    for (int i = 0; i < row.length; i++) {
+                        ps.setString(i + 1, row[i]);
+                    }
+                    ps.executeUpdate();
+                    total++;
                 }
-                ps.executeUpdate();
+                conn.commit();
             }
-            conn.commit();
         } catch (Exception e) {
             conn.rollback();
             throw e;
         } finally {
             conn.setAutoCommit(true);
         }
-
-        return data.rows.size();
+        return total;
     }
 
     @Override
     public int bulkInsert(String csvFile, String tableName, int batchSize) throws Exception {
-        CSVReader data = new CSVReader(csvFile);
-
-        String cols = buildCols(data.headers);
-        String phs  = buildPlaceholders(data.headers.size());
-        String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
-                                    quote(tableName), cols, phs);
-
-        conn.setAutoCommit(false);
         int total = 0;
+        conn.setAutoCommit(false);
+        try (CSVStream csv = new CSVStream(csvFile)) {
+            String cols = buildCols(csv.headers);
+            String phs  = buildPlaceholders(csv.headers.size());
+            String sql  = String.format("INSERT INTO %s (%s) VALUES (%s)",
+                                        quote(tableName), cols, phs);
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            int count = 0;
-            for (String[] row : data.rows) {
-                for (int i = 0; i < row.length; i++) {
-                    ps.setString(i + 1, row[i]);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                int count = 0;
+                while (csv.hasNext()) {
+                    String[] row = csv.next();
+                    for (int i = 0; i < row.length; i++) {
+                        ps.setString(i + 1, row[i]);
+                    }
+                    ps.addBatch();
+                    count++;
+
+                    if (count >= batchSize) {
+                        ps.executeBatch();
+                        total += count;
+                        count = 0;
+                    }
                 }
-                ps.addBatch();
-                count++;
-
-                if (count % batchSize == 0) {
+                if (count > 0) {
                     ps.executeBatch();
                     total += count;
-                    count = 0;
                 }
+                conn.commit();
             }
-            if (count > 0) {
-                ps.executeBatch();
-                total += count;
-            }
-            conn.commit();
         } catch (Exception e) {
             conn.rollback();
             throw e;
         } finally {
             conn.setAutoCommit(true);
         }
-
         return total;
     }
 
     @Override
     public int fileInsert(String csvFile, String tableName) throws Exception {
-        CSVReader data = new CSVReader(csvFile);
-
-        StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < data.headers.size(); i++) {
-            if (i > 0) buf.append(",");
-            buf.append(escapeCsvField(data.headers.get(i)));
-        }
-        buf.append("\n");
-        for (String[] row : data.rows) {
-            for (int i = 0; i < row.length; i++) {
-                if (i > 0) buf.append(",");
-                buf.append(escapeCsvField(row[i]));
-            }
-            buf.append("\n");
-        }
-
+        // Стримим файл напрямую в PostgreSQL COPY, без парсинга в Java.
+        // Парсинг и StringBuilder-копия съедали ~2× размер файла в куче и
+        // приводили к OutOfMemoryError на больших объёмах (10⁷ строк).
+        // PostgreSQL COPY понимает RFC 4180 CSV сам.
         String copySQL = String.format(
             "COPY %s FROM STDIN WITH (FORMAT csv, HEADER true)",
             quote(tableName)
         );
 
+        long rowsCopied;
         conn.setAutoCommit(false);
-        try {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(csvFile), "UTF-8"),
+                1 << 20  // 1 МБ буфер чтения
+        )) {
             CopyManager copyManager = new CopyManager((BaseConnection) conn);
-            copyManager.copyIn(copySQL, new StringReader(buf.toString()));
+            rowsCopied = copyManager.copyIn(copySQL, reader);
             conn.commit();
         } catch (Exception e) {
             conn.rollback();
@@ -150,7 +143,7 @@ public class InserterPgSQL implements Inserter {
             conn.setAutoCommit(true);
         }
 
-        return data.rows.size();
+        return (int) rowsCopied;
     }
 
     private String buildCols(List<String> headers) {

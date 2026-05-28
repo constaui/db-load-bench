@@ -47,14 +47,15 @@ func (ins *MySQLInserter) placeholder(_ int) string {
 }
 
 func (ins *MySQLInserter) DefaultInsert(csvFile, tableName string) (int, error) {
-	data, err := readCSV(csvFile)
+	stream, err := openCSV(csvFile)
 	if err != nil {
 		return 0, err
 	}
+	defer stream.Close()
 
-	cols := make([]string, len(data.Headers))
-	phs  := make([]string, len(data.Headers))
-	for i, h := range data.Headers {
+	cols := make([]string, len(stream.Headers))
+	phs  := make([]string, len(stream.Headers))
+	for i, h := range stream.Headers {
 		cols[i] = ins.quote(h)
 		phs[i]  = "?"
 	}
@@ -70,7 +71,6 @@ func (ins *MySQLInserter) DefaultInsert(csvFile, tableName string) (int, error) 
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
-
 	stmt, err := tx.Prepare(query)
 	if err != nil {
 		tx.Rollback()
@@ -78,78 +78,102 @@ func (ins *MySQLInserter) DefaultInsert(csvFile, tableName string) (int, error) 
 	}
 	defer stmt.Close()
 
-	for _, row := range data.Rows {
+	count := 0
+	for {
+		row, ok, err := stream.Next()
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+		if !ok {
+			break
+		}
 		if _, err := stmt.Exec(rowToArgs(row)...); err != nil {
 			tx.Rollback()
 			return 0, fmt.Errorf("exec row: %w", err)
 		}
+		count++
 	}
 
-	return len(data.Rows), tx.Commit()
+	return count, tx.Commit()
 }
 
 func (ins *MySQLInserter) BulkInsert(csvFile, tableName string, batchSize int) (int, error) {
-	data, err := readCSV(csvFile)
+	stream, err := openCSV(csvFile)
 	if err != nil {
 		return 0, err
 	}
+	defer stream.Close()
 
-	cols := make([]string, len(data.Headers))
-	for i, h := range data.Headers {
+	cols := make([]string, len(stream.Headers))
+	for i, h := range stream.Headers {
 		cols[i] = ins.quote(h)
 	}
 	colStr := strings.Join(cols, ", ")
 	table  := ins.quote(tableName)
+	ncols  := len(stream.Headers)
 	total  := 0
 
-	for i := 0; i < len(data.Rows); i += batchSize {
-		end := i + batchSize
-		if end > len(data.Rows) {
-			end = len(data.Rows)
+	// Заранее построим шаблон одной группы (?, ?, ?...).
+	rowPhs := "(" + strings.Repeat("?, ", ncols-1) + "?)"
+
+	batch := make([][]string, 0, batchSize)
+
+	flushBatch := func() error {
+		if len(batch) == 0 {
+			return nil
 		}
-		batch := data.Rows[i:end]
-
 		valueStrings := make([]string, len(batch))
-		valueArgs    := make([]interface{}, 0, len(batch)*len(data.Headers))
-
+		valueArgs    := make([]interface{}, 0, len(batch)*ncols)
 		for j, row := range batch {
-			phs := make([]string, len(data.Headers))
-			for k := range data.Headers {
-				phs[k] = "?"
-			}
-			valueStrings[j] = "(" + strings.Join(phs, ", ") + ")"
+			valueStrings[j] = rowPhs
 			valueArgs = append(valueArgs, rowToArgs(row)...)
 		}
-
 		query := fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES %s",
 			table, colStr, strings.Join(valueStrings, ", "),
 		)
-
 		tx, err := ins.db.Begin()
 		if err != nil {
-			return total, fmt.Errorf("begin tx: %w", err)
+			return fmt.Errorf("begin tx: %w", err)
 		}
 		if _, err := tx.Exec(query, valueArgs...); err != nil {
 			tx.Rollback()
-			return total, fmt.Errorf("exec batch: %w", err)
+			return fmt.Errorf("exec batch: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
-			return total, fmt.Errorf("commit: %w", err)
+			return fmt.Errorf("commit: %w", err)
 		}
 		total += len(batch)
+		batch = batch[:0]
+		return nil
+	}
+
+	for {
+		row, ok, err := stream.Next()
+		if err != nil {
+			return total, err
+		}
+		if !ok {
+			break
+		}
+		batch = append(batch, row)
+		if len(batch) >= batchSize {
+			if err := flushBatch(); err != nil {
+				return total, err
+			}
+		}
+	}
+	if err := flushBatch(); err != nil {
+		return total, err
 	}
 
 	return total, nil
 }
 
 func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
-	data, err := readCSV(csvFile)
-	if err != nil {
-		return 0, err
-	}
-	rowCount := len(data.Rows)
-
+	// Файл не парсим в Go вообще — сервер MySQL сам читает его через
+	// LOAD DATA LOCAL INFILE. Счётчик строк берём из RowsAffected().
 	absPath, err := toAbsPath(csvFile)
 	if err != nil {
 		return 0, err
@@ -165,11 +189,15 @@ func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 		IGNORE 1 ROWS
 	`, absPath, ins.quote(tableName))
 
-	if _, err := ins.db.Exec(query); err != nil {
+	res, err := ins.db.Exec(query)
+	if err != nil {
 		return 0, fmt.Errorf("load data infile: %w", err)
 	}
-
-	return rowCount, nil
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("rows affected: %w", err)
+	}
+	return int(rows), nil
 }
 
 // toAbsPath возвращает абсолютный путь к файлу в форме, пригодной для:
@@ -210,47 +238,84 @@ func cleanStr(s string) string {
 	return s
 }
 
-func readCSV(path string) (*CSVData, error) {
+// CSVStream — потоковый CSV-ридер. В отличие от старого readCSV (грузил всё
+// в [][]string и упирался в RAM на 10⁷ строк) — читает по одной строке при
+// каждом вызове Next().
+//
+// Использование:
+//
+//	stream, err := openCSV(path)
+//	if err != nil { ... }
+//	defer stream.Close()
+//	for {
+//	    row, ok, err := stream.Next()
+//	    if err != nil { ... }
+//	    if !ok { break }
+//	    ... // обработать row
+//	}
+type CSVStream struct {
+	Headers []string
+
+	file    *os.File
+	scanner *bufio.Scanner
+}
+
+func openCSV(path string) (*CSVStream, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
-	defer f.Close()
 
-	var lines []string
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan: %w", err)
-	}
-	if len(lines) == 0 {
+	// Большой буфер: одна строка CSV в широких таблицах может быть длинной.
+	scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+
+	if !scanner.Scan() {
+		f.Close()
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("scan header: %w", err)
+		}
 		return nil, fmt.Errorf("csv is empty")
 	}
-
-	headers, err := parseWrappedLine(lines[0])
+	headerLine := scanner.Text()
+	headers, err := parseWrappedLine(headerLine)
 	if err != nil {
+		f.Close()
 		return nil, fmt.Errorf("parse headers: %w", err)
 	}
 	if len(headers) > 0 {
 		headers[0] = strings.TrimPrefix(headers[0], "\xef\xbb\xbf")
 	}
 
-	var rows [][]string
-	for i, line := range lines[1:] {
+	return &CSVStream{
+		Headers: headers,
+		file:    f,
+		scanner: scanner,
+	}, nil
+}
+
+// Next возвращает следующую непустую строку CSV.
+// ok=false при достижении EOF.
+func (s *CSVStream) Next() (row []string, ok bool, err error) {
+	for s.scanner.Scan() {
+		line := s.scanner.Text()
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		row, err := parseWrappedLine(line)
+		row, err = parseWrappedLine(line)
 		if err != nil {
-			return nil, fmt.Errorf("parse row %d: %w", i+1, err)
+			return nil, false, fmt.Errorf("parse row: %w", err)
 		}
-		rows = append(rows, row)
+		return row, true, nil
 	}
+	if err := s.scanner.Err(); err != nil {
+		return nil, false, fmt.Errorf("scan: %w", err)
+	}
+	return nil, false, nil
+}
 
-	return &CSVData{Headers: headers, Rows: rows}, nil
+func (s *CSVStream) Close() error {
+	return s.file.Close()
 }
 
 func parseWrappedLine(line string) ([]string, error) {
@@ -272,11 +337,6 @@ func parseWrappedLine(line string) ([]string, error) {
 		fields[i] = cleanStr(f)
 	}
 	return fields, nil
-}
-
-type CSVData struct {
-	Headers []string
-	Rows    [][]string
 }
 
 type ConnParams struct {

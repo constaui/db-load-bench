@@ -1,9 +1,7 @@
-#[derive(Debug)]
-pub struct CSVData {
-    pub headers: Vec<String>,
-    pub rows:    Vec<Vec<String>>,
-}
+use std::fs::File;
+use std::io::{BufRead, BufReader, Lines};
 
+/// Очищает идентификатор/значение от обрамляющих кавычек и пробелов.
 pub fn clean_identifier(s: &str) -> String {
     let mut result = s.to_string();
     loop {
@@ -78,27 +76,67 @@ fn parse_wrapped_line(line: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn csv_read(path: &str) -> anyhow::Result<CSVData> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| anyhow::anyhow!("csv_read: {}", e))?;
+/// Потоковый CSV-итератор. Читает файл по одной строке через `BufReader::lines`
+/// и возвращает каждую обработанную строку через `Iterator::next`. Не грузит
+/// файл в память — годится для CSV в миллионы строк.
+///
+/// Использование:
+/// ```ignore
+/// let mut stream = CsvStream::open(path)?;
+/// for row in stream.by_ref() {
+///     let row = row?;
+///     // ...
+/// }
+/// ```
+pub struct CsvStream {
+    pub headers: Vec<String>,
+    lines: Lines<BufReader<File>>,
+}
 
-    let mut lines: Vec<&str> = content
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .collect();
+impl CsvStream {
+    pub fn open(path: &str) -> anyhow::Result<Self> {
+        let file = File::open(path)
+            .map_err(|e| anyhow::anyhow!("open: {}", e))?;
+        // 1 МБ буфер — достаточно даже для длинных строк CSV.
+        let reader = BufReader::with_capacity(1 << 20, file);
+        let mut lines = reader.lines();
 
-    if lines.is_empty() {
-        anyhow::bail!("csv_read: file is empty");
+        // Первая непустая строка — заголовок.
+        let header_line = loop {
+            match lines.next() {
+                None => anyhow::bail!("csv is empty"),
+                Some(Err(e)) => return Err(anyhow::anyhow!("read header: {}", e)),
+                Some(Ok(s)) => {
+                    if !s.trim().is_empty() {
+                        break s;
+                    }
+                }
+            }
+        };
+
+        let mut headers = parse_wrapped_line(&header_line);
+        if let Some(first) = headers.first_mut() {
+            *first = first.trim_start_matches('\u{FEFF}').to_string();
+        }
+
+        Ok(CsvStream { headers, lines })
     }
+}
 
-    let mut headers = parse_wrapped_line(lines[0]);
+impl Iterator for CsvStream {
+    type Item = anyhow::Result<Vec<String>>;
 
-    if let Some(first) = headers.first_mut() {
-        *first = first.trim_start_matches('\u{FEFF}').to_string();
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.lines.next()? {
+                Err(e) => return Some(Err(anyhow::anyhow!("read line: {}", e))),
+                Ok(line) => {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    return Some(Ok(parse_wrapped_line(&line)));
+                }
+            }
+        }
     }
-
-    lines.remove(0);
-    let rows = lines.iter().map(|l| parse_wrapped_line(l)).collect();
-
-    Ok(CSVData { headers, rows })
 }

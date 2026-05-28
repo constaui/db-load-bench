@@ -3,6 +3,9 @@ mod inserter;
 mod inserter_mysql;
 mod inserter_pgsql;
 
+#[cfg(test)]
+mod csv_tests;
+
 use inserter::{ConnParams, Inserter};
 use inserter_mysql::MySQLInserter;
 use inserter_pgsql::PgSQLInserter;
