@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
@@ -191,19 +192,42 @@ func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 	}
 	mysql.RegisterLocalFile(absPath)
 
+	lineTerm, err := detectLinesTerminator(csvFile)
+	if err != nil {
+		return 0, err
+	}
+
 	query := fmt.Sprintf(`
 		LOAD DATA LOCAL INFILE '%s'
 		INTO TABLE %s
 		FIELDS TERMINATED BY ','
 		OPTIONALLY ENCLOSED BY '"'
-		LINES TERMINATED BY '\n'
+		LINES TERMINATED BY '%s'
 		IGNORE 1 ROWS
-	`, absPath, ins.quote(tableName))
+	`, absPath, ins.quote(tableName), lineTerm)
 
 	if _, err := ins.db.Exec(query); err != nil {
 		return 0, fmt.Errorf("load data infile: %w", err)
 	}
 	return 0, nil
+}
+
+// detectLinesTerminator определяет line-ending CSV-файла без декодирования.
+// Возвращает строку-аргумент для LOAD DATA LINES TERMINATED BY: `\r\n` или `\n`.
+// MySQL LOAD DATA INFILE строгий: при несовпадении весь файл воспринимается
+// как одна «строка», и IGNORE 1 ROWS оставляет 1 битую запись.
+func detectLinesTerminator(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("detect line endings: %w", err)
+	}
+	defer f.Close()
+	buf := make([]byte, 8192)
+	n, _ := f.Read(buf)
+	if bytes.Contains(buf[:n], []byte("\r\n")) {
+		return `\r\n`, nil
+	}
+	return `\n`, nil
 }
 
 // toAbsPath возвращает абсолютный путь к файлу в форме, пригодной для:

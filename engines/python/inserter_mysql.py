@@ -23,6 +23,20 @@ def _quote(name: str) -> str:
     return f"`{clean}`"
 
 
+def _detect_lines_terminator(path: str) -> str:
+    """Возвращает строку-аргумент для LOAD DATA LINES TERMINATED BY.
+    Без декодирования файла: читаем первые 8 КБ, ищем CRLF — типичен для
+    CSV, созданных на Windows (Excel, Python csv с дефолтным newline и т.п.).
+    MySQL LOAD DATA INFILE строгий: при несовпадении терминатора всё
+    содержимое воспринимается как одна «строка», и IGNORE 1 ROWS оставляет
+    1 «битую» запись."""
+    with open(path, "rb") as f:
+        chunk = f.read(8192)
+    if b"\r\n" in chunk:
+        return r"\r\n"  # 4 символа: \, r, \, n — MySQL раскроет как CRLF
+    return r"\n"
+
+
 def count_rows(conn_params: dict, table_name: str) -> int:
     """Возвращает фактическое число строк в таблице из самой БД.
     Используется в main.py для независимой проверки результата вставки."""
@@ -103,13 +117,14 @@ def file_insert(conn_params: dict, csv_file: str, table_name: str) -> int:
             row_count = sum(1 for _ in csv.DictReader(f))
 
         abs_path = csv_file.replace("\\", "/")
+        line_term = _detect_lines_terminator(csv_file)
         cursor.execute(
             f"""
             LOAD DATA LOCAL INFILE '{abs_path}'
             INTO TABLE {_quote(table_name)}
             FIELDS TERMINATED BY ','
             OPTIONALLY ENCLOSED BY '"'
-            LINES TERMINATED BY '\\n'
+            LINES TERMINATED BY '{line_term}'
             IGNORE 1 ROWS
         """
         )

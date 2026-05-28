@@ -41,6 +41,28 @@ public class CSVReader {
     }
 
     /**
+     * Определяет line-ending CSV-файла без декодирования.
+     * Возвращает строку-аргумент для LOAD DATA LINES TERMINATED BY:
+     * {@code "\\r\\n"} (Windows-стиль) или {@code "\\n"}. Без этого
+     * LOAD DATA на Windows-файле может потерять разбиение строк и
+     * оставить в таблице 1 битую запись.
+     */
+    public static String detectLinesTerminator(String path) throws IOException {
+        try (InputStream is = new FileInputStream(path)) {
+            byte[] buf = new byte[8192];
+            int n = is.read(buf);
+            if (n > 0) {
+                for (int i = 0; i + 1 < n; i++) {
+                    if (buf[i] == '\r' && buf[i + 1] == '\n') {
+                        return "\\r\\n";
+                    }
+                }
+            }
+        }
+        return "\\n";
+    }
+
+    /**
      * Потоковый счётчик непустых строк CSV минус одна (заголовок).
      *
      * Нужен для file_insert: MySQL-драйвер на LOAD DATA INFILE возвращает

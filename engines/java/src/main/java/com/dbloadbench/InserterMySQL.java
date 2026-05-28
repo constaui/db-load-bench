@@ -121,17 +121,18 @@ public class InserterMySQL implements Inserter {
         // LOAD DATA LOCAL INFILE. Возвращаемое значение метода больше не
         // используется в Main: фактическое число строк Main получает через
         // countRows() уже после замера времени.
-        File   f       = new File(csvFile);
-        String absPath = f.getAbsolutePath().replace("\\", "/");
+        File   f        = new File(csvFile);
+        String absPath  = f.getAbsolutePath().replace("\\", "/");
+        String lineTerm = CSVReader.detectLinesTerminator(csvFile);
 
         String sql = String.format("""
             LOAD DATA LOCAL INFILE '%s'
             INTO TABLE %s
             FIELDS TERMINATED BY ','
             OPTIONALLY ENCLOSED BY '"'
-            LINES TERMINATED BY '\\n'
+            LINES TERMINATED BY '%s'
             IGNORE 1 ROWS
-            """, absPath, quote(tableName));
+            """, absPath, quote(tableName), lineTerm);
 
         conn.setAutoCommit(false);
         try (Statement st = conn.createStatement()) {

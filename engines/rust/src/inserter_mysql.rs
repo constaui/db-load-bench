@@ -3,6 +3,22 @@ use crate::inserter::{ConnParams, Inserter};
 use anyhow::{Result, anyhow};
 use mysql::prelude::*;
 use mysql::*;
+use std::io::Read;
+
+/// Определяет line-ending CSV-файла без декодирования.
+/// Возвращает строку-аргумент для LOAD DATA LINES TERMINATED BY:
+/// `\r\n` (Windows-стиль) или `\n`. Без этого LOAD DATA на Windows-файле
+/// может потерять разбиение строк и оставить в таблице 1 битую запись.
+fn detect_lines_terminator(path: &str) -> std::io::Result<&'static str> {
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = [0u8; 8192];
+    let n = file.read(&mut buf)?;
+    if buf[..n].windows(2).any(|w| w == b"\r\n") {
+        Ok(r"\r\n")
+    } else {
+        Ok(r"\n")
+    }
+}
 
 pub struct MySQLInserter {
     conn: Conn,
@@ -130,15 +146,19 @@ impl Inserter for MySQLInserter {
         // Backslash → forward slash: безопасно и для Windows API, и для MySQL.
         let sql_path = abs_path.to_string_lossy().replace('\\', "/");
 
+        let line_term = detect_lines_terminator(csv_file)
+            .map_err(|e| anyhow!("detect line endings: {}", e))?;
+
         let sql = format!(
             "LOAD DATA LOCAL INFILE '{}' \
             INTO TABLE {} \
             FIELDS TERMINATED BY ',' \
             OPTIONALLY ENCLOSED BY '\"' \
-            LINES TERMINATED BY '\\n' \
+            LINES TERMINATED BY '{}' \
             IGNORE 1 ROWS",
             sql_path,
-            Self::quote(table)
+            Self::quote(table),
+            line_term
         );
 
         self.conn
