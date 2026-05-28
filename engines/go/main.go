@@ -21,6 +21,10 @@ type Inserter interface {
 	DefaultInsert(csvFile, tableName string) (int, error)
 	BulkInsert(csvFile, tableName string, batchSize int) (int, error)
 	FileInsert(csvFile, tableName string) (int, error)
+	// CountRows возвращает фактическое число строк в таблице,
+	// запрашивая SELECT COUNT(*) — независимая проверка результата
+	// вставки, не зависящая от драйвера/счётчика итераций.
+	CountRows(tableName string) (int, error)
 	Close()
 }
 
@@ -71,15 +75,13 @@ func main() {
 
 	start := time.Now()
 
-	var rows int
-
 	switch *method {
 	case "default_insert":
-		rows, err = inserter.DefaultInsert(*csvFile, *tableName)
+		_, err = inserter.DefaultInsert(*csvFile, *tableName)
 	case "bulk_insert":
-		rows, err = inserter.BulkInsert(*csvFile, *tableName, *batchSize)
+		_, err = inserter.BulkInsert(*csvFile, *tableName, *batchSize)
 	case "file_insert":
-		rows, err = inserter.FileInsert(*csvFile, *tableName)
+		_, err = inserter.FileInsert(*csvFile, *tableName)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown method: %s\n", *method)
 		os.Exit(1)
@@ -89,6 +91,14 @@ func main() {
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "insert error:", err)
+		os.Exit(1)
+	}
+
+	// Число вставленных строк берём из самой БД — независимая проверка
+	// результата (не файл, не счётчик драйвера, не счётчик итераций).
+	rows, err := inserter.CountRows(*tableName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "count rows error:", err)
 		os.Exit(1)
 	}
 

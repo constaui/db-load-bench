@@ -1,3 +1,4 @@
+import java.io.*;
 import java.util.*;
 
 /**
@@ -6,7 +7,8 @@ import java.util.*;
  * Раньше класс был ещё и in-memory ридером (грузил весь файл в
  * {@code List<String[]>}), что приводило к OutOfMemoryError на больших
  * объёмах. Потоковая часть переехала в {@link CSVStream}; здесь остались
- * только функции разбора одной строки и нормализации идентификаторов.
+ * только функции разбора одной строки и нормализации идентификаторов,
+ * а также потоковый счётчик строк для file_insert.
  */
 public class CSVReader {
 
@@ -36,6 +38,28 @@ public class CSVReader {
         fields.add(current.toString());
 
         return fields.toArray(new String[0]);
+    }
+
+    /**
+     * Потоковый счётчик непустых строк CSV минус одна (заголовок).
+     *
+     * Нужен для file_insert: MySQL-драйвер на LOAD DATA INFILE возвращает
+     * через executeUpdate() единицу (статус OK-пакета), а не число
+     * загруженных строк. Поэтому считаем строки сами одним проходом по
+     * файлу, без парсинга и без загрузки в память.
+     */
+    public static int countDataRows(String path) throws IOException {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(new FileInputStream(path), "UTF-8"),
+                1 << 20)) {
+            int total = 0;
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                total++;
+            }
+            return total > 0 ? total - 1 : 0;
+        }
     }
 
     /** Удаляет обрамляющие кавычки/пробелы из идентификатора колонки/значения. */

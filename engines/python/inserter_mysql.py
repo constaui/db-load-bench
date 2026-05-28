@@ -23,6 +23,20 @@ def _quote(name: str) -> str:
     return f"`{clean}`"
 
 
+def count_rows(conn_params: dict, table_name: str) -> int:
+    """Возвращает фактическое число строк в таблице из самой БД.
+    Используется в main.py для независимой проверки результата вставки."""
+    conn = _connect(conn_params)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"SELECT COUNT(*) FROM {_quote(table_name)}")
+        row = cursor.fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def default_insert(conn_params: dict, csv_file: str, table_name: str) -> int:
     conn = _connect(conn_params)
     cursor = conn.cursor()

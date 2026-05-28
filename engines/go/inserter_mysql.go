@@ -37,6 +37,15 @@ func (ins *MySQLInserter) Close() {
 	ins.db.Close()
 }
 
+func (ins *MySQLInserter) CountRows(tableName string) (int, error) {
+	var n int
+	err := ins.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", ins.quote(tableName))).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count rows: %w", err)
+	}
+	return n, nil
+}
+
 func (ins *MySQLInserter) quote(name string) string {
 	clean := cleanStr(name)
 	return "`" + strings.ReplaceAll(clean, "`", "``") + "`"
@@ -172,8 +181,10 @@ func (ins *MySQLInserter) BulkInsert(csvFile, tableName string, batchSize int) (
 }
 
 func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
-	// Файл не парсим в Go вообще — сервер MySQL сам читает его через
-	// LOAD DATA LOCAL INFILE. Счётчик строк берём из RowsAffected().
+	// Парсить CSV в Go не нужно — сервер MySQL сам читает файл через
+	// LOAD DATA LOCAL INFILE. Возвращаемое значение метода больше не
+	// используется в main: фактическое число строк подсчитывается через
+	// CountRows() уже после замера времени.
 	absPath, err := toAbsPath(csvFile)
 	if err != nil {
 		return 0, err
@@ -189,15 +200,10 @@ func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 		IGNORE 1 ROWS
 	`, absPath, ins.quote(tableName))
 
-	res, err := ins.db.Exec(query)
-	if err != nil {
+	if _, err := ins.db.Exec(query); err != nil {
 		return 0, fmt.Errorf("load data infile: %w", err)
 	}
-	rows, err := res.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("rows affected: %w", err)
-	}
-	return int(rows), nil
+	return 0, nil
 }
 
 // toAbsPath возвращает абсолютный путь к файлу в форме, пригодной для:
@@ -316,6 +322,39 @@ func (s *CSVStream) Next() (row []string, ok bool, err error) {
 
 func (s *CSVStream) Close() error {
 	return s.file.Close()
+}
+
+// countCsvDataRows — потоковый счётчик строк данных (всего непустых минус
+// заголовок). Не парсит CSV, не загружает файл в память.
+//
+// Нужен для file_insert: MySQL-драйвер на LOAD DATA INFILE возвращает в
+// RowsAffected() единицу (статус OK-пакета), а не число загруженных строк.
+// Поэтому считаем строки сами одним проходом по файлу.
+func countCsvDataRows(path string) (int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, fmt.Errorf("count open: %w", err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+
+	total := 0
+	for scanner.Scan() {
+		if strings.TrimSpace(scanner.Text()) == "" {
+			continue
+		}
+		total++
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, fmt.Errorf("count scan: %w", err)
+	}
+
+	if total > 0 {
+		return total - 1, nil // минус заголовок
+	}
+	return 0, nil
 }
 
 func parseWrappedLine(line string) ([]string, error) {

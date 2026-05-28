@@ -31,25 +31,28 @@ public class Main {
         }
 
         long   start   = System.nanoTime();
+        double elapsed = 0.0;
         int    rows    = 0;
 
         try (inserter) {
-            rows = switch (method) {
+            switch (method) {
                 case "default_insert" -> inserter.defaultInsert(csvFile, tableName);
                 case "bulk_insert"    -> inserter.bulkInsert(csvFile, tableName, batchSize);
                 case "file_insert"    -> inserter.fileInsert(csvFile, tableName);
                 default -> {
                     System.err.println("unknown method: " + method);
                     System.exit(1);
-                    yield 0;
                 }
-            };
+            }
+            elapsed = (System.nanoTime() - start) / 1_000_000_000.0;
+
+            // Число вставленных строк берём из самой БД — независимая
+            // проверка результата (не CSV, не драйвер, не счётчик итераций).
+            rows = inserter.countRows(tableName);
         } catch (Exception e) {
             System.err.println("insert error: " + e.getMessage());
             System.exit(1);
         }
-
-        double  elapsed   = (System.nanoTime() - start) / 1_000_000_000.0;
         Integer batchArg  = method.equals("bulk_insert") ? batchSize : null;
 
         Result result = Result.build(dbType, method, rows, elapsed, batchArg);

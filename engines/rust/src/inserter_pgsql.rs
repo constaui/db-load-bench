@@ -3,7 +3,6 @@ use crate::inserter::{ConnParams, Inserter};
 use anyhow::{Result, anyhow};
 use postgres::{Client, NoTls};
 use std::fmt::Write;
-use std::io::BufRead;
 
 pub struct PgSQLInserter {
     client: Client,
@@ -40,6 +39,13 @@ impl PgSQLInserter {
 }
 
 impl Inserter for PgSQLInserter {
+
+    fn count_rows(&mut self, table: &str) -> Result<usize> {
+        let sql = format!("SELECT COUNT(*) FROM {}", Self::quote(table));
+        let row = self.client.query_one(sql.as_str(), &[])?;
+        let n: i64 = row.get(0);
+        Ok(n as usize)
+    }
 
     fn default_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
         let mut stream = CsvStream::open(csv_file)?;
@@ -118,14 +124,9 @@ impl Inserter for PgSQLInserter {
     }
 
     fn file_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
-        // Считаем строки за один поток (без загрузки файла в память).
-        let row_count = {
-            let file = std::fs::File::open(csv_file)
-                .map_err(|e| anyhow!("open: {}", e))?;
-            let reader = std::io::BufReader::new(file);
-            reader.lines().count().saturating_sub(1)
-        };
-
+        // Возвращаемое значение метода больше не используется в main:
+        // фактическое число строк main получает через count_rows() уже
+        // после замера времени.
         let copy_sql = format!(
             "COPY {} FROM STDIN WITH (FORMAT csv, HEADER true)",
             Self::quote(table)
@@ -143,6 +144,6 @@ impl Inserter for PgSQLInserter {
         writer.finish()
             .map_err(|e| anyhow!("COPY finish error: {}", e))?;
 
-        Ok(row_count)
+        Ok(0)
     }
 }

@@ -29,6 +29,15 @@ public class InserterMySQL implements Inserter {
         catch (SQLException ignored) {}
     }
 
+    @Override
+    public int countRows(String tableName) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + quote(tableName);
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
     private String quote(String name) {
         String clean = CSVReader.cleanIdentifier(name)
                                 .replace("`", "``");
@@ -108,8 +117,10 @@ public class InserterMySQL implements Inserter {
 
     @Override
     public int fileInsert(String csvFile, String tableName) throws Exception {
-        // НЕ парсим файл в Java — для LOAD DATA LOCAL INFILE сервер сам
-        // читает CSV. CSVReader на 10⁷ строк давал OutOfMemoryError.
+        // НЕ парсим файл в Java — сервер MySQL сам читает CSV через
+        // LOAD DATA LOCAL INFILE. Возвращаемое значение метода больше не
+        // используется в Main: фактическое число строк Main получает через
+        // countRows() уже после замера времени.
         File   f       = new File(csvFile);
         String absPath = f.getAbsolutePath().replace("\\", "/");
 
@@ -122,12 +133,9 @@ public class InserterMySQL implements Inserter {
             IGNORE 1 ROWS
             """, absPath, quote(tableName));
 
-        int affected;
         conn.setAutoCommit(false);
         try (Statement st = conn.createStatement()) {
-            // executeUpdate() для LOAD DATA INFILE возвращает количество
-            // вставленных строк (из OK-пакета MySQL).
-            affected = st.executeUpdate(sql);
+            st.executeUpdate(sql);
             conn.commit();
         } catch (Exception e) {
             conn.rollback();
@@ -136,7 +144,7 @@ public class InserterMySQL implements Inserter {
             conn.setAutoCommit(true);
         }
 
-        return affected;
+        return 0;
     }
 
     private String buildCols(List<String> headers) {

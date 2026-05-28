@@ -35,6 +35,15 @@ func (ins *PgSQLInserter) Close() {
 	ins.db.Close()
 }
 
+func (ins *PgSQLInserter) CountRows(tableName string) (int, error) {
+	var n int
+	err := ins.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", ins.quote(tableName))).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count rows: %w", err)
+	}
+	return n, nil
+}
+
 func (ins *PgSQLInserter) quote(name string) string {
 	clean := cleanStr(name)
 	return `"` + strings.ReplaceAll(clean, `"`, `""`) + `"`

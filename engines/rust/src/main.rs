@@ -60,19 +60,27 @@ fn main() {
     let batch_size: usize = batch_str.parse().unwrap_or(1000);
     let start = Instant::now();
 
-    let rows = match method {
+    let insert_res = match method {
         "default_insert" => ins.default_insert(csv_file, table),
         "bulk_insert"    => ins.bulk_insert(csv_file, table, batch_size),
         "file_insert"    => ins.file_insert(csv_file, table),
         _ => { eprintln!("unknown method: {}", method); std::process::exit(1); }
     };
 
-    let rows = match rows {
-        Ok(r)  => r,
-        Err(e) => { eprintln!("insert error: {}", e); std::process::exit(1); }
+    let elapsed = start.elapsed().as_secs_f64();
+
+    if let Err(e) = insert_res {
+        eprintln!("insert error: {}", e);
+        std::process::exit(1);
+    }
+
+    // Число вставленных строк берём из самой БД — независимая проверка,
+    // что вставка реально дошла до таблицы.
+    let rows = match ins.count_rows(table) {
+        Ok(n)  => n,
+        Err(e) => { eprintln!("count rows error: {}", e); std::process::exit(1); }
     };
 
-    let elapsed = start.elapsed().as_secs_f64();
     let is_bulk = method == "bulk_insert";
 
     println!(

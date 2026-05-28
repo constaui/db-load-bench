@@ -50,10 +50,14 @@ def main():
 
     start = time.perf_counter()
     if args.method == "bulk_insert":
-        rows = insert_fn(conn_params, args.csv, args.table, args.batch_size)
+        insert_fn(conn_params, args.csv, args.table, args.batch_size)
     else:
-        rows = insert_fn(conn_params, args.csv, args.table)
+        insert_fn(conn_params, args.csv, args.table)
     elapsed = time.perf_counter() - start
+
+    # Число вставленных строк берём из самой БД — независимая проверка
+    # результата (не файл, не счётчик драйвера).
+    rows = engine.count_rows(conn_params, args.table)
 
     run = MethodRun(
         engine="Python",
@@ -63,7 +67,7 @@ def main():
         method_config={
             "batch_size": args.batch_size if args.method == "bulk_insert" else None
         },
-        metrics={"elapsed": elapsed, "rps": round(rows / elapsed, 1)},
+        metrics={"elapsed": elapsed, "rps": round(rows / elapsed, 1) if elapsed > 0 else 0.0},
     )
 
     print(json.dumps(run.to_dict()))

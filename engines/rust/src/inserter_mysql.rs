@@ -3,7 +3,6 @@ use crate::inserter::{ConnParams, Inserter};
 use anyhow::{Result, anyhow};
 use mysql::prelude::*;
 use mysql::*;
-use std::io::BufRead;
 
 pub struct MySQLInserter {
     conn: Conn,
@@ -45,6 +44,12 @@ impl MySQLInserter {
 }
 
 impl Inserter for MySQLInserter {
+
+    fn count_rows(&mut self, table: &str) -> Result<usize> {
+        let sql = format!("SELECT COUNT(*) FROM {}", Self::quote(table));
+        let row: Option<i64> = self.conn.query_first(&sql)?;
+        Ok(row.unwrap_or(0) as usize)
+    }
 
     fn default_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
         let mut stream = CsvStream::open(csv_file)?;
@@ -112,19 +117,14 @@ impl Inserter for MySQLInserter {
 
     fn file_insert(&mut self, csv_file: &str, table: &str) -> Result<usize> {
         // Парсить файл не нужно — LOAD DATA INFILE даёт серверу прочитать его
-        // самостоятельно. Счётчик строк получаем за один проход через
-        // BufReader::lines, не загружая файл целиком в RAM.
+        // самостоятельно. Возвращаемое значение метода больше не используется
+        // в main: фактическое число строк main получает через count_rows()
+        // уже после замера времени.
         let raw_path = std::path::PathBuf::from(csv_file);
         let abs_path = if raw_path.is_absolute() {
             raw_path
         } else {
             std::env::current_dir()?.join(raw_path)
-        };
-
-        let row_count = {
-            let file = std::fs::File::open(&abs_path)?;
-            let reader = std::io::BufReader::new(file);
-            reader.lines().count().saturating_sub(1)
         };
 
         // Backslash → forward slash: безопасно и для Windows API, и для MySQL.
@@ -145,6 +145,6 @@ impl Inserter for MySQLInserter {
             .query_drop(sql)
             .map_err(|e| anyhow!("LOAD DATA error: {}", e))?;
 
-        Ok(row_count)
+        Ok(0)
     }
 }

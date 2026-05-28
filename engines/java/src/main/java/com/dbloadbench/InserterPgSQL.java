@@ -35,6 +35,15 @@ public class InserterPgSQL implements Inserter {
         catch (SQLException ignored) {}
     }
 
+    @Override
+    public int countRows(String tableName) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + quote(tableName);
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
     private String quote(String name) {
         String clean = CSVReader.cleanIdentifier(name)
                                 .replace("\"", "\"\"");
