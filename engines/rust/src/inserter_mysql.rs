@@ -165,6 +165,22 @@ impl Inserter for MySQLInserter {
             .query_drop(sql)
             .map_err(|e| anyhow!("LOAD DATA error: {}", e))?;
 
+        // Диагностика: вытаскиваем все warnings от LOAD DATA. Если MySQL не
+        // разобрал файл правильно (line endings, кавычки, число колонок),
+        // именно warnings подскажут причину.
+        if let Ok(warns) = self.conn.query::<(String, u32, String), _>("SHOW WARNINGS") {
+            if !warns.is_empty() {
+                eprintln!("[MySQL LOAD DATA warnings]");
+                for (i, (level, code, msg)) in warns.iter().enumerate() {
+                    if i >= 10 {
+                        eprintln!("  ... ещё {} warnings", warns.len() - 10);
+                        break;
+                    }
+                    eprintln!("  {} {}: {}", level, code, msg);
+                }
+            }
+        }
+
         Ok(0)
     }
 }

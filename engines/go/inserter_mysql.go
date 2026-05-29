@@ -209,6 +209,29 @@ func (ins *MySQLInserter) FileInsert(csvFile, tableName string) (int, error) {
 	if _, err := ins.db.Exec(query); err != nil {
 		return 0, fmt.Errorf("load data infile: %w", err)
 	}
+
+	// Диагностика: вытаскиваем все warnings от LOAD DATA. Если MySQL не
+	// разобрал файл правильно (line endings, кавычки, число колонок),
+	// именно они скажут что не так.
+	if rows, err := ins.db.Query("SHOW WARNINGS"); err == nil {
+		defer rows.Close()
+		n := 0
+		for rows.Next() {
+			var level, code, message string
+			if err := rows.Scan(&level, &code, &message); err == nil {
+				if n == 0 {
+					fmt.Fprintln(os.Stderr, "[MySQL LOAD DATA warnings]")
+				}
+				if n < 10 {
+					fmt.Fprintf(os.Stderr, "  %s %s: %s\n", level, code, message)
+				}
+				n++
+			}
+		}
+		if n > 10 {
+			fmt.Fprintf(os.Stderr, "  ... ещё %d warnings\n", n-10)
+		}
+	}
 	return 0, nil
 }
 

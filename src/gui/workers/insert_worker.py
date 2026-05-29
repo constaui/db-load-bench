@@ -152,7 +152,12 @@ class InsertWorker(QThread):
                     "db_type": self.config["db_type"].lower(),
                 }
                 self._manager = ProcessManager(
-                    engine=engine, conn_params=conn_for_engine
+                    engine=engine,
+                    conn_params=conn_for_engine,
+                    # Прокидываем stderr движка в GUI-лог: туда попадают
+                    # диагностические сообщения (например, MySQL warnings
+                    # после LOAD DATA), которые иначе бы пропадали.
+                    stderr_logger=lambda msg: self.log_message.emit(msg, "INFO"),
                 )
 
                 cell_label = self._cell_label(engine, csv_file, method, batch)

@@ -137,12 +137,17 @@ class ProcessManager:
         engine: str,
         conn_params: dict,
         sampling_interval_s: float = 0.05,
+        stderr_logger=None,  # Optional[Callable[[str], None]]
     ):
         if engine not in ENGINES:
             raise ValueError(f"Unknown engine: {engine}")
         self.engine = engine
         self.conn_params = conn_params
         self.sampling_interval_s = sampling_interval_s
+        # Колбек получает каждую непустую строку из stderr движка. Нужен
+        # чтобы диагностика (например, MySQL warnings после LOAD DATA)
+        # дошла до GUI-лога, а не пропадала.
+        self.stderr_logger = stderr_logger
         self._current_proc: subprocess.Popen | None = None
         self._terminated_by_user: bool = False
 
@@ -187,6 +192,12 @@ class ProcessManager:
 
         if self._terminated_by_user:
             raise RunCancelled(f"[{self.engine}] прервано пользователем")
+
+        # stderr движка выводим всегда — даже при returncode == 0 туда могут
+        # попасть диагностические сообщения (например, MySQL SHOW WARNINGS).
+        if stderr and stderr.strip() and self.stderr_logger is not None:
+            for line in stderr.strip().splitlines():
+                self.stderr_logger(f"[{self.engine}] {line}")
 
         if proc.returncode != 0:
             raise RuntimeError(

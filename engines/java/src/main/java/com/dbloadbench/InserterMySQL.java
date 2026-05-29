@@ -137,6 +137,25 @@ public class InserterMySQL implements Inserter {
         conn.setAutoCommit(false);
         try (Statement st = conn.createStatement()) {
             st.executeUpdate(sql);
+            // Диагностика: вытаскиваем все warnings от LOAD DATA.
+            // Если MySQL не разобрал файл (line endings, кавычки, число
+            // колонок), именно warnings скажут что не так.
+            try (ResultSet rs = st.executeQuery("SHOW WARNINGS")) {
+                int n = 0;
+                while (rs.next()) {
+                    if (n == 0) {
+                        System.err.println("[MySQL LOAD DATA warnings]");
+                    }
+                    if (n < 10) {
+                        System.err.printf("  %s %s: %s%n",
+                            rs.getString(1), rs.getString(2), rs.getString(3));
+                    }
+                    n++;
+                }
+                if (n > 10) {
+                    System.err.printf("  ... ещё %d warnings%n", n - 10);
+                }
+            }
             conn.commit();
         } catch (Exception e) {
             conn.rollback();

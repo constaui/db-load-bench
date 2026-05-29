@@ -128,6 +128,18 @@ def file_insert(conn_params: dict, csv_file: str, table_name: str) -> int:
             IGNORE 1 ROWS
         """
         )
+        # Диагностика: если MySQL что-то «проглотил» с warnings — выведем
+        # их в stderr, чтобы GUI лог показал реальную причину.
+        try:
+            cursor.execute("SHOW WARNINGS")
+            warns = cursor.fetchall()
+            if warns:
+                import sys as _sys
+                print(f"[MySQL LOAD DATA warnings: {len(warns)}]", file=_sys.stderr)
+                for w in warns[:10]:
+                    print(f"  {w}", file=_sys.stderr)
+        except Exception:
+            pass
         conn.commit()
         return row_count
     except Exception:
