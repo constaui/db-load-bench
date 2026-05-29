@@ -31,6 +31,7 @@ from ..components.line_chart import LineChartWidget
 from ..components.results_table import ResultsTableWidget
 from ..components.box_plot import BoxPlotWidget
 from ..components.multi_filter_bar import MultiFilterBar, FilterSelection
+from .delete_by_params_dialog import DeleteByParamsDialog
 
 VIEWS = ["Bar Chart", "Line Chart", "Box-plot", "Таблица"]
 
@@ -192,6 +193,11 @@ class ResultsWidget(QGroupBox):
         self._file_menu.addAction(act_reset)
 
         self._file_menu.addSeparator()
+        act_delete_by = QAction("Удалить записи по параметрам…", self._file_menu)
+        act_delete_by.setEnabled(bool(self._store))
+        act_delete_by.triggered.connect(self._on_delete_by_params)
+        self._file_menu.addAction(act_delete_by)
+
         act_clear = QAction("Очистить файл результатов", self._file_menu)
         act_clear.triggered.connect(self._on_clear_file)
         self._file_menu.addAction(act_clear)
@@ -311,3 +317,51 @@ class ResultsWidget(QGroupBox):
         if reply == QMessageBox.StandardButton.Yes:
             clear_results_file()
             self._clear_view()
+
+    def _on_delete_by_params(self):
+        """Удаление записей из results.json по параметрам через диалог."""
+        if not self._store:
+            QMessageBox.information(
+                self,
+                "Нет данных",
+                "В файле результатов нет записей для удаления.",
+            )
+            return
+
+        dialog = DeleteByParamsDialog(self._store, parent=self)
+        if dialog.exec() != dialog.DialogCode.Accepted:
+            return
+
+        indices = set(dialog.matching_indices())
+        if not indices:
+            return
+
+        # Применяем удаление: оставляем только те записи, которых нет в indices.
+        kept = [r for i, r in enumerate(self._store) if i not in indices]
+        n_removed = len(self._store) - len(kept)
+        self._store = kept
+
+        try:
+            save_results(self._store)
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Ошибка сохранения",
+                f"Не удалось сохранить файл результатов:\n{e}",
+            )
+            # Перечитываем из файла, чтобы UI отражал реальное состояние диска
+            self._store = load_results()
+            self._sync_filter_options()
+            self._refresh()
+            return
+
+        # Перестроим фильтр и графики
+        self._sync_filter_options()
+        self._refresh()
+        self._rebuild_file_menu()
+
+        QMessageBox.information(
+            self,
+            "Готово",
+            f"Удалено записей: {n_removed}.\nОсталось: {len(self._store)}.",
+        )
